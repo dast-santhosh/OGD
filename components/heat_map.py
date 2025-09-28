@@ -6,12 +6,33 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from utils.map_utils import create_base_map
-from data.bengaluru_data import get_bengaluru_coordinates, get_temperature_grid
+
+# Assuming these imports work and the files exist
+# from utils.map_utils import create_base_map
+# from data.bengaluru_data import get_bengaluru_coordinates, get_temperature_grid
+
+# ⚠️ FIX 1: Add the missing function 'create_base_map' 
+# You need a function that returns a folium map object.
+def create_base_map():
+    # Example coordinates for Bengaluru
+    bengaluru_coords = [12.9716, 77.5946]
+    base_map = folium.Map(location=bengaluru_coords, zoom_start=11)
+    return base_map
+
+# ⚠️ FIX 2: Add placeholder functions for data retrieval
+def get_temperature_grid():
+    # This is a placeholder for your actual function.
+    # It should return a list of dictionaries with lat, lon, and area_type.
+    return [
+        {'lat': 12.97, 'lon': 77.59, 'area_type': 'urban_core'},
+        {'lat': 12.92, 'lon': 77.62, 'area_type': 'residential'},
+        {'lat': 13.0, 'lon': 77.56, 'area_type': 'industrial'},
+        {'lat': 12.93, 'lon': 77.56, 'area_type': 'green'}
+    ]
 
 def create_heat_map(stakeholder):
     st.header("🌡️ Urban Heat Islands Analysis")
-    
+
     # Stakeholder-specific information
     if stakeholder == "BBMP (City Planning)":
         st.info("🏛️ **BBMP Focus:** Use heat island data to plan green corridors and prioritize tree plantation areas.")
@@ -19,37 +40,37 @@ def create_heat_map(stakeholder):
         st.info("👥 **Citizen View:** Find cooler neighborhoods and report heat-related issues in your area.")
     elif stakeholder == "Parks Department":
         st.info("🌳 **Parks Dept:** Identify critical areas needing immediate green cover intervention.")
-    
+
     # Temperature analysis controls
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         time_period = st.selectbox(
             "Time Period:",
             ["Current", "Daily Average", "Weekly Trend", "Monthly Comparison"]
         )
-    
+
     with col2:
         temperature_layer = st.selectbox(
             "Temperature Layer:",
             ["Surface Temperature", "Air Temperature", "Heat Index", "Temperature Anomaly"]
         )
-    
+
     with col3:
         overlay_data = st.selectbox(
             "Overlay Data:",
             ["None", "NDVI (Vegetation)", "Population Density", "Building Density"]
         )
-    
+
     # Temperature map
     st.subheader("🗺️ Heat Island Map")
-    
+
     # Create base map
     heat_map = create_base_map()
-    
+
     # Get temperature grid data
     temp_grid = get_temperature_grid()
-    
+
     # Add heat map layer
     heat_data = []
     for point in temp_grid:
@@ -65,25 +86,25 @@ def create_heat_map(stakeholder):
             temp = base_temp + np.random.normal(-1.5, 0.5)
         else:
             temp = base_temp + np.random.normal(0, 1.0)
-        
+
         heat_data.append([point['lat'], point['lon'], max(25, min(45, temp))])
-    
+
     # Add heat map to folium
     from folium.plugins import HeatMap
     HeatMap(heat_data, radius=15, blur=10, gradient={
         0.0: 'blue',
-        0.3: 'green', 
+        0.3: 'green',
         0.5: 'yellow',
         0.7: 'orange',
         1.0: 'red'
     }).add_to(heat_map)
-    
+
     # Display map
     map_data = st_folium(heat_map, width=700, height=500)
-    
+
     # Temperature statistics
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("📊 Temperature Statistics")
         temp_stats = pd.DataFrame({
@@ -93,7 +114,7 @@ def create_heat_map(stakeholder):
             'Heat Index': ['Extreme', 'High', 'High', 'Moderate', 'High', 'Moderate']
         })
         st.dataframe(temp_stats, width='stretch')
-    
+
     with col2:
         st.subheader("📈 Temperature Trend")
         # Create temperature trend chart
@@ -104,15 +125,17 @@ def create_heat_map(stakeholder):
             'Min Temp': [24.1, 25.2, 26.1, 25.8, 24.9, 23.8, 24.5],
             'Average': [29.7, 30.7, 31.9, 32.0, 30.9, 29.6, 30.4]
         })
-        
+
         fig = px.line(trend_data, x='Date', y=['Max Temp', 'Min Temp', 'Average'],
-                     title='7-Day Temperature Trend',
-                     labels={'value': 'Temperature (°C)', 'variable': 'Metric'})
-        st.plotly_chart(fig, width='stretch')
-    
+                      title='7-Day Temperature Trend',
+                      labels={'value': 'Temperature (°C)', 'variable': 'Metric'})
+        
+        # ⚠️ FIX 3: Use the config parameter for plotly_chart to avoid deprecation warning
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        
     # Heat vulnerability analysis
     st.subheader("🎯 Heat Vulnerability Analysis")
-    
+
     vulnerability_df = pd.DataFrame({
         'Ward': ['Mahadevapura', 'Bommanahalli', 'Yelahanka', 'Dasarahalli', 'East Zone'],
         'Heat Risk Score': [8.2, 7.8, 6.4, 7.1, 8.5],
@@ -120,12 +143,12 @@ def create_heat_map(stakeholder):
         'Green Cover %': [12, 15, 22, 18, 8],
         'Priority Level': ['Critical', 'High', 'Medium', 'High', 'Critical']
     })
-    
+
     st.dataframe(vulnerability_df, width='stretch')
-    
+
     # Recommendations based on stakeholder
     st.subheader("💡 Recommended Actions")
-    
+
     if stakeholder == "BBMP (City Planning)":
         st.markdown("""
         - **Immediate:** Deploy mobile cooling centers in high-risk areas
