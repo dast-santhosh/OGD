@@ -19,15 +19,9 @@ from utils.map_utils import create_base_map
 from utils.data_processing import load_environmental_data
 
 # Page configuration
-current_dir = os.path.dirname(__file__)
-
-# Create the full path to your logo file
-logo_path = os.path.join(current_dir, "logo.png")
-
-# Page configuration
 st.set_page_config(
     page_title="Climate-Resilient Bengaluru Dashboard",
-    page_icon=logo_path,  # Use the full file path here
+    page_icon="🛰️",  # Use the full file path here
     layout="wide",
     initial_sidebar_state="expanded"
 )
