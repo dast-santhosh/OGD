@@ -21,10 +21,36 @@ from utils.data_processing import load_environmental_data
 # Page configuration
 st.set_page_config(
     page_title="Climate-Resilient Bengaluru Dashboard",
-    page_icon="🛰️",  # Use the full file path here
+    page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Custom CSS to force the sidebar into light mode
+st.markdown("""
+<style>
+/* Main sidebar container */
+section[data-testid="stSidebar"] {
+    background-color: #f0f2f6; 
+    color: black;
+}
+
+/* Sidebar header titles and text */
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] h4,
+section[data-testid="stSidebar"] p {
+    color: #31333F !important;
+}
+
+/* Selectbox text and dropdown */
+section[data-testid="stSidebar"] div[role="button"] {
+    background-color: white;
+    color: #31333F;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 # Main title and description
@@ -35,8 +61,9 @@ for urban planners, policymakers, and citizens.
 """)
 
 # Add logos to the sidebar
-st.sidebar.image("nasa.png", use_column_width=True)
-st.sidebar.image("logo.png", use_column_width=True)
+# 🚨 Fix: Use `use_container_width` to resolve the deprecation warning
+st.sidebar.image("nasa.png", use_container_width=True)
+st.sidebar.image("logo.png", use_container_width=True)
 
 # Sidebar for stakeholder selection and navigation
 st.sidebar.title("🎯 Stakeholder Dashboard")
