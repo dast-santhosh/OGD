@@ -1,0 +1,63 @@
+🌍 Online Geospatial Dashboard for Climate-Resilient Bengaluru
+🔹 Problem Context
+
+Bengaluru, one of the fastest-growing cities in India, faces severe urban challenges: shrinking green spaces, extreme heat islands, erratic rainfall, flooding, water scarcity, and rising air pollution. NASA Earth observation data has revealed rapid land-use changes, declining lake extents, and increasing surface temperatures in and around the city. If left unchecked, these trends threaten public health, infrastructure stability, and environmental sustainability.
+
+City leaders (BBMP, BDA, BWSSB, BESCOM) urgently need actionable insights to plan sustainable growth while ensuring people’s wellbeing. But current city planning is fragmented, lacking real-time, data-driven monitoring of land, air, and water resources.
+
+🔹 Proposed Solution
+
+We propose an Online Geospatial Dashboard that integrates NASA Earth observation data with local city datasets to create a real-time decision-support platform for urban planners, policymakers, and citizens.
+
+This dashboard will:
+
+Map Urban Heat Islands – Use MODIS/Landsat thermal data + NDVI to identify overheating neighborhoods and low-vegetation areas.
+
+Track Water Bodies & Flood Risk – Monitor lake shrinkage, water quality (using turbidity, bloom detection from EO data), and highlight flood-prone zones using precipitation/topography datasets.
+
+Analyze Air Quality & Growth Corridors – Overlay aerosol (AOD/PM₂.₅) and NO₂ datasets with population and land-use change maps to identify pollution hotspots.
+
+Forecast Vulnerabilities – Provide predictive insights on extreme weather risks, heatwaves, and flooding events using climate model integrations.
+
+Enable Community Participation – Residents can upload local reports (flooded streets, missing trees, sewage leaks), creating a citizen science + NASA data fusion ecosystem.
+
+🔹 Key Features
+
+🌡️ Heat Map Layers – Visualize daily/seasonal temperature anomalies across Bengaluru.
+
+💧 Water Health Monitor – Detect lake shrinkage and pollution patterns (e.g., Bellandur foam events).
+
+🌬️ Air Quality Dashboard – City-wide map of PM₂.₅, NO₂, and ozone levels.
+
+🏙️ Urban Growth Analyzer – Identify unplanned sprawl using night-time lights and land-use change datasets.
+
+📊 Policy Dashboard – Custom views for BBMP, BWSSB, BESCOM, Parks Dept., and citizen groups.
+
+📱 Community App Integration – Mobile-friendly module for residents to contribute ground-level data.
+
+🔹 Stakeholder Involvement
+
+City Leaders (BBMP, BDA, BWSSB, BESCOM): Decision-makers use the dashboard to allocate resources for parks, drainage, clinics, and transit planning.
+
+Local Communities: Citizens provide hyperlocal observations that complement satellite data, improving accuracy.
+
+Researchers & NGOs: Use dashboard data for studies, awareness campaigns, and sustainable interventions.
+
+🔹 Why NASA Data?
+
+MODIS/Landsat – Land Surface Temperature, NDVI, water bodies.
+
+VIIRS – Night-time lights for urban growth.
+
+Aqua/Terra MODIS & TROPOMI – Air pollution (AOD, NO₂, CO).
+
+GRACE & GPM – Groundwater storage, precipitation for flood/drought analysis.
+
+Sentinel + NASA Harmonized Landsat Sentinel (HLS) – High-res land-use change mapping.
+
+🔹 Expected Impact
+
+✅ Climate-Resilient Growth: Helps planners design greener, cooler, and more livable neighborhoods.
+✅ Water Security: Protects lakes, reduces urban flooding, and ensures sustainable supply.
+✅ Healthier Communities: Cleaner air and cooler zones improve public health.
+✅ Citizen Empowerment: Democratizes access to NASA data, making planning transparent.
