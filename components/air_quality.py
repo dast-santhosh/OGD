@@ -153,3 +153,4 @@ def create_heat_map(stakeholder):
         - **Priority areas:** CBD, Electronic City, and East Zone need immediate intervention 
         - **Species selection:** Use native drought-resistant trees 
         - **Maintenance:** Increase watering frequency for existing green cover 
+        """) 
