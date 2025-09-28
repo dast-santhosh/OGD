@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
 
-# Import custom components
+# Import custom components (assuming these exist in your project structure)
 from components.heat_map import create_heat_map
 from components.water_monitoring import create_water_dashboard
 from components.air_quality import create_air_quality_dashboard
@@ -29,25 +29,40 @@ st.set_page_config(
 # Custom CSS to force the sidebar into light mode
 st.markdown("""
 <style>
-/* Main sidebar container */
+/* 1. Sidebar Background and General Text Color */
 section[data-testid="stSidebar"] {
-    background-color: #f0f2f6; 
-    color: black;
+    background-color: #f0f2f6; /* Light gray background */
 }
 
-/* Sidebar header titles and text */
+/* 2. Sidebar Header Titles and Text */
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3,
 section[data-testid="stSidebar"] h4,
-section[data-testid="stSidebar"] p {
-    color: #31333F !important;
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] label {
+    color: #31333F !important; /* Dark text color */
 }
 
-/* Selectbox text and dropdown */
+/* 3. Selectbox/Dropdown background and text */
 section[data-testid="stSidebar"] div[role="button"] {
     background-color: white;
     color: #31333F;
+}
+
+/* 4. Fixed Footer Styling */
+.fixed-footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: #31333F; /* Dark background for visibility */
+    color: white;
+    text-align: center;
+    padding: 10px;
+    font-size: 14px;
+    border-top: 1px solid #4f4f4f;
+    z-index: 1000; /* Ensure it stays on top of other elements */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -61,7 +76,7 @@ for urban planners, policymakers, and citizens.
 """)
 
 # Add logos to the sidebar
-# 🚨 Fix: Use `use_container_width` to resolve the deprecation warning
+# FIX: Replaced deprecated `use_column_width` with `use_container_width`
 st.sidebar.image("nasa.png", use_container_width=True)
 st.sidebar.image("logo.png", use_container_width=True)
 
@@ -148,15 +163,22 @@ elif module == "Community Reports":
 elif module == "AI Assistant":
     create_chatbot(stakeholder, env_data)
 
-# Footer
+# Main Content Footer (just above the fixed footer)
 st.markdown("---")
 st.markdown("""
 **Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM | **Last Updated:** {current_time}
 """.format(current_time=datetime.now().strftime("%Y-%m-%d %H:%M UTC")))
 
-# Add project team credits at the bottom
+# Project Team Credits
 st.markdown("""
 **Project by:**
 Santhosh P
 Aysu A & Team
 """)
+
+# NEW FIXED FOOTER/DOWNBAR
+st.markdown("""
+    <div class="fixed-footer">
+        CodeSphere Institute | DAST India | Santhosh P & Team
+    </div>
+""", unsafe_allow_html=True)
