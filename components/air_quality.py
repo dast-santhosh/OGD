@@ -129,10 +129,3 @@ def create_heat_map(stakeholder):
         - **Species selection:** Use native drought-resistant trees  
         - **Maintenance:** Increase watering frequency for existing green cover  
         """)
-
-# Sidebar Navigation
-st.sidebar.title("App Navigation")
-stakeholder_select = st.sidebar.selectbox("Select Stakeholder View:",
-                                          ["BBMP (City Planning)", "Citizens", "Parks Department"],
-                                          key="stakeholder_select")
-create_heat_map(stakeholder_select)
