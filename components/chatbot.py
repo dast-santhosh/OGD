@@ -5,66 +5,66 @@ import os
 import folium
 from streamlit_folium import st_folium
 
-# --- 1. API Configuration & Environment Variables (Using user-provided structure) ---
-# NOTE: The explicit API key provided is still likely to result in a 401 error,
-# as noted in the warning below.
-try:
-    OPENROUTER_API_KEY = "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"
-    OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-    MODEL = "google/gemma-3n-e2b-it:free"
-except Exception:
-    # Fallback to empty if environment variables fail
-    OPENROUTER_API_KEY = ""
-    OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-    MODEL = "google/gemma-3n-e2b-it:free"
+# --- 1. API Configuration & Environment Variables (Gemini API) ---
+# We use the native Gemini API. The API key is intentionally left empty ("") 
+# and will be securely injected by the environment at runtime.
+GEMINI_API_KEY = "AIzaSyBdmm58juT-4EL5Vc78sXhtqNZ8dsxvq8c"
+GEMINI_MODEL = "gemini-2.5-flash-preview-05-20" # Low-end model as requested
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
 
-
-# Helper function to call the OpenRouter API using requests
+# Helper function to call the Gemini API using requests
 def generate_ai_content(system_prompt, user_input):
     
-    # Use configuration constants
-    api_key = OPENROUTER_API_KEY
-    url = OPENROUTER_URL
-    model_name = MODEL
+    url = GEMINI_URL
+    model_name = GEMINI_MODEL
 
     headers = {
-        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
     
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_input}
-    ]
-
+    # Gemini API payload structure using systemInstruction and contents
     payload = {
-        "model": model_name,
-        "messages": messages,
+        "contents": [{"parts": [{"text": user_input}]}],
+        "systemInstruction": {"parts": [{"text": system_prompt}]}
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status() # Raises HTTPError for bad responses (4xx or 5xx)
+        # Retry logic with exponential backoff (e.g., 1s, 2s, 4s)
+        max_retries = 3
+        initial_delay = 1
+        
+        for attempt in range(max_retries):
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                break
+            
+            # If rate limit (429) or server error (5xx), wait and retry
+            if response.status_code in [429, 500, 503] and attempt < max_retries - 1:
+                import time
+                time.sleep(initial_delay * (2 ** attempt))
+            else:
+                response.raise_for_status() # Raise HTTPError for other bad responses
         
         result = response.json()
         
-        # Extract the generated text
-        if result.get('choices'):
-            return result['choices'][0]['message']['content']
+        # Extract the generated text from Gemini structure
+        candidate = result.get('candidates', [{}])[0]
+        if candidate and candidate.get('content') and candidate['content'].get('parts'):
+            return candidate['content']['parts'][0].get('text', "AI response text not found.")
         else:
-            return "The AI returned an empty or malformed response."
+            # Handle cases where the response structure is unexpected
+            error_message = result.get('error', {}).get('message', 'Unknown API Error')
+            return f"The Gemini AI returned an error: {error_message}"
 
     except requests.exceptions.RequestException as e:
-        print(f"Error calling OpenRouter API: {e}")
-        # Detailed error message for the user, referencing the known 401 issue
-        return f"Sorry, I'm having trouble connecting to the external AI service (OpenRouter) using the {model_name} model. This may be due to the previously noted authentication error (401). Error details: {str(e)}"
+        # Catch network or request-level errors
+        print(f"Error calling Gemini API: {e}")
+        return f"Sorry, I'm having trouble connecting to the Gemini AI service ({model_name}). Please check the network connection. Error details: {str(e)}"
 
 
 def create_chatbot(stakeholder, env_data):
     st.header("🤖 AI Environmental Assistant")
-    
-    # ADD WARNING: Inform the user that this setup may fail
-    st.warning("⚠️ **Warning:** This implementation uses the external OpenRouter API key which previously resulted in a '401 User not found' authentication error and may fail again. The platform's recommended approach uses the native Gemini API.")
     
     # Stakeholder-specific chatbot context setup
     if stakeholder == "Citizens":
@@ -106,7 +106,6 @@ def create_chatbot(stakeholder, env_data):
             st.write(user_input)
         
         # Prepare context with environmental data
-        # Note: This data should ideally be dynamically loaded from the geospatial data.
         env_context = f"""
         Current Bengaluru Environmental Data:
         - Average Temperature: 32.5°C (above normal by 2.1°C)
@@ -119,12 +118,12 @@ def create_chatbot(stakeholder, env_data):
         - Flood Risk Areas: Silk Board (Very High), Electronic City (High), Majestic (High)
         """
         
-        # Generate AI response using the OpenRouter function
+        # Generate AI response using the Gemini function
         full_system_prompt = context_prompt + "\n\n" + env_context
         
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing environmental data..."):
-                # Call the OpenRouter/requests helper function
+            with st.spinner(f"Analyzing environmental data using {GEMINI_MODEL}..."):
+                # Call the Gemini/requests helper function
                 ai_response = generate_ai_content(full_system_prompt, user_input)
                 st.write(ai_response)
                 
@@ -219,9 +218,6 @@ def create_chatbot(stakeholder, env_data):
         st.rerun()
 
 # --- Main App Logic for Streamlit ---
-
-# This structure requires an outer call to create_chatbot to run the app.
-# Since this script needs to be runnable, I will add a mock main loop.
 
 if 'stakeholder' not in st.session_state:
     st.session_state.stakeholder = "Citizens"
