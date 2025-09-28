@@ -6,7 +6,6 @@ import numpy as np
 import plotly.express as px 
 import plotly.graph_objects as go 
 from datetime import datetime, timedelta 
-from folium.plugins import HeatMap
 
 def create_base_map(): 
     # Example coordinates for Bengaluru 
