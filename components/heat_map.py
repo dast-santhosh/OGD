@@ -9,13 +9,12 @@ from datetime import datetime, timedelta
 from folium.plugins import HeatMap
 
 def create_base_map(): 
-    """Creates a base Folium map centered on Bengaluru."""
+    # Example coordinates for Bengaluru 
     bengaluru_coords = [12.9716, 77.5946] 
     base_map = folium.Map(location=bengaluru_coords, zoom_start=11) 
     return base_map 
 
 def get_temperature_grid(): 
-    """Generates a placeholder dataset of temperature points."""
     return [ 
         {'lat': 12.97, 'lon': 77.59, 'area_type': 'urban_core'}, 
         {'lat': 12.92, 'lon': 77.62, 'area_type': 'residential'}, 
@@ -40,19 +39,19 @@ def create_heat_map(stakeholder):
     with col1: 
         time_period = st.selectbox( 
             "Time Period:", 
-            ["Current", "Daily Average", "Weekly Trend", "Monthly Comparison"] 
+            ["Current", "Daily Average", "Weekly Trend", "Monthly Comparison"], key="time_period_select"
         ) 
 
     with col2: 
         temperature_layer = st.selectbox( 
             "Temperature Layer:", 
-            ["Surface Temperature", "Air Temperature", "Heat Index", "Temperature Anomaly"] 
+            ["Surface Temperature", "Air Temperature", "Heat Index", "Temperature Anomaly"], key="temp_layer_select"
         ) 
 
     with col3: 
         overlay_data = st.selectbox( 
             "Overlay Data:", 
-            ["None", "NDVI (Vegetation)", "Population Density", "Building Density"] 
+            ["None", "NDVI (Vegetation)", "Population Density", "Building Density"], key="overlay_data_select"
         ) 
 
     # Temperature map 
@@ -67,7 +66,6 @@ def create_heat_map(stakeholder):
     # Add heat map layer 
     heat_data = [] 
     for point in temp_grid: 
-        # Simulate temperature variations based on location characteristics 
         base_temp = 32.0 
         if point['area_type'] == 'urban_core': 
             temp = base_temp + np.random.normal(3.5, 1.0) 
@@ -82,7 +80,6 @@ def create_heat_map(stakeholder):
 
         heat_data.append([point['lat'], point['lon'], max(25, min(45, temp))]) 
 
-    # Add heat map to folium 
     HeatMap(heat_data, radius=15, blur=10, gradient={ 
         0.0: 'blue', 
         0.3: 'green', 
@@ -91,7 +88,7 @@ def create_heat_map(stakeholder):
         1.0: 'red' 
     }).add_to(heat_map) 
 
-    # Display map - ADDING THE 'KEY' HERE FIXES THE BLINKING ISSUE
+    # Display map - ADDING THE 'KEY' HERE FIXES THE REFRESHING ISSUE
     st_folium(heat_map, width=700, height=500, key="heat_map_display") 
 
     # Temperature statistics 
@@ -105,11 +102,10 @@ def create_heat_map(stakeholder):
             'Daily Max (°C)': [38.5, 36.2, 37.1, 35.8, 36.0, 34.2], 
             'Heat Index': ['Extreme', 'High', 'High', 'Moderate', 'High', 'Moderate'] 
         }) 
-        st.dataframe(temp_stats, width='stretch') 
+        st.dataframe(temp_stats, use_container_width=True) 
 
     with col2: 
         st.subheader("📈 Temperature Trend") 
-        # Create temperature trend chart 
         dates = pd.date_range(start=datetime.now() - timedelta(days=6), end=datetime.now(), freq='D') 
         trend_data = pd.DataFrame({ 
             'Date': dates, 
@@ -122,7 +118,6 @@ def create_heat_map(stakeholder):
                         title='7-Day Temperature Trend', 
                         labels={'value': 'Temperature (°C)', 'variable': 'Metric'}) 
 
-        # Use the config parameter for plotly_chart 
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}) 
 
     # Heat vulnerability analysis 
@@ -136,7 +131,7 @@ def create_heat_map(stakeholder):
         'Priority Level': ['Critical', 'High', 'Medium', 'High', 'Critical'] 
     }) 
 
-    st.dataframe(vulnerability_df, width='stretch') 
+    st.dataframe(vulnerability_df, use_container_width=True) 
 
     # Recommendations based on stakeholder 
     st.subheader("💡 Recommended Actions") 
@@ -160,9 +155,9 @@ def create_heat_map(stakeholder):
         - **Maintenance:** Increase watering frequency for existing green cover 
         """)
 
-# This is a suggested main block to run the app
+# Main entry point for the app
 if __name__ == "__main__":
     st.set_page_config(layout="wide", page_title="Urban Heat Dashboard")
     st.sidebar.title("App Navigation")
-    stakeholder_select = st.sidebar.selectbox("Select Stakeholder View:", ["BBMP (City Planning)", "Citizens", "Parks Department"])
+    stakeholder_select = st.sidebar.selectbox("Select Stakeholder View:", ["BBMP (City Planning)", "Citizens", "Parks Department"], key="stakeholder_select")
     create_heat_map(stakeholder_select)
