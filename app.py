@@ -22,8 +22,8 @@ from utils.data_processing import load_environmental_data
 st.set_page_config(
     page_title="Climate-Resilient Bengaluru Dashboard",
     page_icon="🌍",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # Main title and description
