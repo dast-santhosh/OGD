@@ -8,162 +8,203 @@ from datetime import datetime, timedelta
 import os
 import requests
 
-# Import custom components (assuming these exist in your project structure)
+# Import custom modules
 from components.heat_map import create_heat_map
 from components.water_monitoring import create_water_dashboard
 from components.air_quality import create_air_quality_dashboard
 from components.urban_growth import create_urban_growth_analyzer
 from components.community_reports import create_community_reports
 from components.chatbot import create_chatbot
-from data.bengaluru_data import get_bengaluru_coordinates, get_sample_locations
+from services.nasa_service import NASAService
+from services.weather_service import WeatherService
+from services.gemini_service import GeminiService
+from utils.data_utils import get_bengaluru_coordinates, get_sample_locations, load_environmental_data
 from utils.map_utils import create_base_map
-from utils.data_processing import load_environmental_data
 
 # Page configuration
 st.set_page_config(
-    page_title="Climate-Resilient Bengaluru Dashboard",
-    page_icon="🛰️",
+    page_title="🌍 Aeroterra - Climate Dashboard",
+    page_icon="🌍",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to force the sidebar into light mode
+# Custom CSS for professional styling
 st.markdown("""
 <style>
-/* 1. Sidebar Background and General Text Color */
+/* Sidebar styling */
 section[data-testid="stSidebar"] {
-    background-color: #f0f2f6; /* Light gray background */
+    background-color: #f0f2f6;
 }
 
-/* 2. Sidebar Header Titles and Text */
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] h4,
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] label {
-    color: #31333F !important; /* Dark text color */
+    color: #31333F !important;
 }
 
-/* 3. Selectbox/Dropdown background and text */
 section[data-testid="stSidebar"] div[role="button"] {
     background-color: white;
     color: #31333F;
 }
 
-/* 4. Fixed Footer Styling */
+/* Fixed footer */
 .fixed-footer {
     position: fixed;
     left: 0;
     bottom: 0;
     width: 100%;
-    background-color: #31333F; /* Dark background for visibility */
+    background-color: #31333F;
     color: white;
     text-align: center;
     padding: 10px;
     font-size: 14px;
     border-top: 1px solid #4f4f4f;
-    z-index: 1000; /* Ensure it stays on top of other elements */
+    z-index: 1000;
+}
+
+/* Alert severity colors */
+.alert-high {
+    background-color: #ffebee;
+    padding: 8px;
+    border-left: 4px solid #f44336;
+    margin: 4px 0;
+}
+
+.alert-moderate {
+    background-color: #fff3e0;
+    padding: 8px;
+    border-left: 4px solid #ff9800;
+    margin: 4px 0;
+}
+
+.alert-low {
+    background-color: #e8f5e9;
+    padding: 8px;
+    border-left: 4px solid #4caf50;
+    margin: 4px 0;
 }
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize services
+@st.cache_resource
+def initialize_services():
+    """Initializes and caches API services."""
+    nasa_service = NASAService()
+    weather_service = WeatherService()
+    gemini_service = GeminiService()
+    return nasa_service, weather_service, gemini_service
 
-# Main title and description
-st.title("🌍 Climate-Resilient Bengaluru Geospatial Dashboard")
-st.markdown("""
-Real-time decision-support platform integrating NASA Earth observation data
-for urban planners, policymakers, and citizens.
-""")
+# Main app function
+def main():
+    """Main function to run the Streamlit application."""
+    st.title("🌍 Aeroterra – Climate-Resilient Bengaluru Dashboard")
+    st.markdown("*Interactive geospatial decision-support platform powered by NASA Earth observation data and AI*")
 
-# Add logos to the sidebar
-# FIX: Replaced deprecated `use_column_width` with `use_container_width`
-st.sidebar.image("nasa.png", use_container_width=True)
-st.sidebar.image("logo.png", use_container_width=True)
+    # Initialize services
+    nasa_service, weather_service, gemini_service = initialize_services()
 
-# Sidebar for stakeholder selection and navigation
-st.sidebar.title("🎯 Stakeholder Dashboard")
-stakeholder = st.sidebar.selectbox(
-    "Select Stakeholder View:",
-    ["Citizens", "BBMP (City Planning)", "BWSSB (Water Board)", "BESCOM (Electricity)", "Parks Department", "Researchers"]
-)
+    # Add logos to the sidebar
+    st.sidebar.image("nasa.png", use_container_width=True)
+    st.sidebar.image("logo.png", use_container_width=True)
 
-st.sidebar.title("📊 Dashboard Modules")
-module = st.sidebar.selectbox(
-    "Select Module:",
-    ["Overview", "Heat Islands", "Water Monitoring", "Air Quality", "Urban Growth", "Community Reports", "AI Assistant"]
-)
+    # Sidebar for stakeholder selection and navigation
+    st.sidebar.title("🎯 Stakeholder Dashboard")
+    stakeholder = st.sidebar.selectbox(
+        "Select Stakeholder View:",
+        ["Citizens", "BBMP (City Planning)", "BWSSB (Water Board)", "BESCOM (Electricity)", "Parks Department", "Researchers"]
+    )
 
-# Global variables for Bengaluru's coordinates
-BENGALURU_LAT = 12.9716
-BENGALURU_LON = 77.5946
+    st.sidebar.title("📊 Dashboard Modules")
+    module = st.sidebar.selectbox(
+        "Select Module:",
+        ["Overview", "Heat Islands", "Water Monitoring", "Air Quality", "Urban Growth", "Community Reports", "AI Assistant"]
+    )
 
-# Load environmental data
-@st.cache_data
-def load_data():
-    return load_environmental_data()
+    # Global variables for Bengaluru's coordinates
+    BENGALURU_LAT, BENGALURU_LON = get_bengaluru_coordinates()
 
-env_data = load_data()
+    # Load environmental data
+    env_data = load_environmental_data()
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def get_live_weather_data():
-    """
-    Fetches real-time weather and air quality data from Open-Meteo APIs.
-    """
-    try:
-        # Fetching temperature and other weather data
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=temperature_2m,relative_humidity_2m"
-        weather_response = requests.get(weather_url)
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
-        current_temp = weather_data['current']['temperature_2m']
-        
-        # Fetching air quality data
-        aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=european_aqi"
-        aqi_response = requests.get(aqi_url)
-        aqi_response.raise_for_status()
-        aqi_data = aqi_response.json()
-        current_aqi = aqi_data['current']['european_aqi']
-        
-        return {
-            "temperature": current_temp,
-            "aqi": current_aqi
-        }
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching live data: {e}")
-        return None
+    # Main dashboard content based on selected module
+    if module == "Overview":
+        render_overview(stakeholder, BENGALURU_LAT, BENGALURU_LON, weather_service, env_data)
+    elif module == "Heat Islands":
+        create_heat_map(stakeholder)
+    elif module == "Water Monitoring":
+        create_water_dashboard(stakeholder)
+    elif module == "Air Quality":
+        create_air_quality_dashboard(stakeholder)
+    elif module == "Urban Growth":
+        create_urban_growth_analyzer(stakeholder)
+    elif module == "Community Reports":
+        create_community_reports(stakeholder)
+    elif module == "AI Assistant":
+        create_chatbot(stakeholder, env_data)
 
-# Main dashboard content based on selected module
-if module == "Overview":
+    # Main Content Footer (just above the fixed footer)
+    st.markdown("---")
+    st.markdown(f"""
+    **Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM, Open-Meteo API | **Last Updated:** {datetime.now().strftime("%Y-%m-%d %H:%M UTC")}
+    """)
+
+    # Project Team Credits
+    st.markdown("""
+    **Project by:** Santhosh P & Aysu A & Team
+    """)
+
+    # NEW FIXED FOOTER/DOWNBAR
+    st.markdown("""
+        <div class="fixed-footer">
+            🌍 Aeroterra Dashboard | Powered by NASA Earth Observations & Gemini AI
+        </div>
+    """, unsafe_allow_html=True)
+
+
+def render_overview(stakeholder, lat, lon, weather_service, env_data):
+    """Renders the main Overview dashboard section."""
     st.header(f"📈 {stakeholder} Overview Dashboard")
-    
+
     # Fetch live data
-    live_data = get_live_weather_data()
-    
+    with st.spinner("Loading real-time climate data..."):
+        try:
+            live_weather = weather_service.get_current_weather(lat, lon)
+            live_aqi = weather_service.get_air_quality(lat, lon)
+        except Exception as e:
+            st.error(f"Failed to fetch live data: {e}")
+            live_weather, live_aqi = None, None
+
     # Key metrics row
     col1, col2, col3, col4 = st.columns(4)
 
-    if live_data:
+    if live_weather:
         with col1:
-            st.metric("🌡️ Avg Temperature", f"{live_data['temperature']}°C")
-
-        with col3:
-            st.metric("🌬️ Air Quality (AQI)", f"{live_data['aqi']}")
+            temp = live_weather.get('temperature_2m', 'N/A')
+            st.metric("🌡️ Avg Temperature", f"{temp}°C")
+        with col2:
+            humidity = live_weather.get('relative_humidity_2m', 0)
+            st.metric("💧 Humidity", f"{humidity}%")
     else:
-        # Use mock data if API call fails
         with col1:
             st.metric("🌡️ Avg Temperature", "32.5°C", "+2.1°C")
+        with col2:
+            st.metric("💧 Humidity", "65%", "-5%")
 
+    if live_aqi:
+        with col3:
+            aqi_value = live_aqi.get('european_aqi', 'N/A')
+            st.metric("🌬️ Air Quality (AQI)", f"{aqi_value}")
+    else:
         with col3:
             st.metric("🌬️ Air Quality (AQI)", "156", "+12")
 
-    # Metrics that don't change in real-time
-    with col2:
-        st.metric("💧 Lake Health Index", "6.2/10", "-0.8")
-        
     with col4:
-        st.metric("🏙️ Green Cover", "18.2%", "-1.3%")
-        
+        st.metric("🌳 Green Cover", "18.2%", "-1.3%")
+
     # Overview map
     st.subheader("🗺️ Bengaluru Environmental Overview")
     base_map = create_base_map()
@@ -178,51 +219,18 @@ if module == "Overview":
             fillOpacity=0.7
         ).add_to(base_map)
 
-    map_data = st_folium(base_map, width=700, height=500)
+    st_folium(base_map, width=700, height=500)
 
     # Recent alerts
     st.subheader("🚨 Recent Environmental Alerts")
-    alerts_df = pd.DataFrame([
+    alerts_data = pd.DataFrame([
         {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High"},
         {"Time": "6 hours ago", "Type": "Air Quality", "Location": "Silk Board", "Severity": "Moderate"},
         {"Time": "1 day ago", "Type": "Water Quality", "Location": "Bellandur Lake", "Severity": "High"},
         {"Time": "2 days ago", "Type": "Flooding Risk", "Location": "Majestic Area", "Severity": "Low"}
     ])
-    st.dataframe(alerts_df, width='stretch')
+    st.dataframe(alerts_data, width='stretch')
 
-elif module == "Heat Islands":
-    create_heat_map(stakeholder)
 
-elif module == "Water Monitoring":
-    create_water_dashboard(stakeholder)
-
-elif module == "Air Quality":
-    create_air_quality_dashboard(stakeholder)
-
-elif module == "Urban Growth":
-    create_urban_growth_analyzer(stakeholder)
-
-elif module == "Community Reports":
-    create_community_reports(stakeholder)
-
-elif module == "AI Assistant":
-    create_chatbot(stakeholder, env_data)
-
-# Main Content Footer (just above the fixed footer)
-st.markdown("---")
-st.markdown("""
-**Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM, Open-Meteo API | **Last Updated:** {current_time}
-""".format(current_time=datetime.now().strftime("%Y-%m-%d %H:%M UTC")))
-
-# Project Team Credits
-st.markdown("""
-**Project by:** Santhosh P 
-Aysu A & Team
-""")
-
-# NEW FIXED FOOTER/DOWNBAR
-st.markdown("""
-    <div class="fixed-footer">
-        CodeSphere Institute | DAST India | Santhosh P & Team
-    </div>
-""", unsafe_allow_html=True)
+if __name__ == "__main__":
+    main()
