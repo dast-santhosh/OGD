@@ -187,7 +187,7 @@ if module == "Overview":
     st.subheader("🚨 Recent Environmental Alerts")
 
     alerts = [
-        {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High"},
+        {"Time": "2 hours ago", "Type": "Mild Heat Wave", "Location": "Electronic City", "Severity": "High"},
         {"Time": "6 hours ago", "Type": "Air Quality", "Location": "Silk Board", "Severity": "Moderate"},
         {"Time": "1 day ago", "Type": "Water Quality", "Location": "Bellandur Lake", "Severity": "High"},
         {"Time": "2 days ago", "Type": "Flooding Risk", "Location": "Majestic Area", "Severity": "Low"}
