@@ -231,6 +231,12 @@ def create_trend_graph():
             aqi_response.raise_for_status()
             aqi_data = aqi_response.json()
 
+            # --- FIX: Key Validation to prevent KeyError if API returns non-standard response ---
+            if 'daily' not in weather_data or 'daily' not in aqi_data:
+                # If 'daily' key is missing, treat it as a fetch failure and raise an exception 
+                # to fall into the retry/mock data logic below.
+                raise ValueError("API returned data but missing expected 'daily' key.")
+
             # Create DataFrame from live data
             df = pd.DataFrame({
                 'date': pd.to_datetime(weather_data['daily']['time']),
@@ -239,7 +245,7 @@ def create_trend_graph():
             })
             break # Success, exit loop
         
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, ValueError) as e: # Catch Request errors and the new ValueError
             if attempt < max_retries - 1:
                 delay = base_delay * (2 ** attempt)
                 time.sleep(delay)
@@ -306,6 +312,21 @@ st.markdown("""
 A decision-support platform integrating NASA Earth observation data
 for urban resilience planning and citizen awareness.
 """)
+
+# --- Sidebar Logo/Branding ---
+st.sidebar.markdown(
+    """
+    <div style='text-align: center; padding: 10px 0 20px 0;'>
+        <h1 style='color: #4CAF50; font-size: 28px; margin-bottom: 0px;'>
+            🌱 **BENGALURU**
+        </h1>
+        <p style='color: #9CA3AF; font-size: 14px; margin-top: 0px;'>
+            Resilience Hub
+        </p>
+    </div>
+    """, unsafe_allow_html=True
+)
+# --- End Sidebar Logo/Branding ---
 
 # Sidebar for stakeholder selection and navigation
 st.sidebar.title("🎯 Stakeholder View")
