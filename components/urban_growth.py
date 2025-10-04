@@ -8,13 +8,24 @@ import numpy as np
 # --- Utility Functions (Simulating external imports) ---
 
 def create_base_map(center_lat=12.9716, center_lon=77.5946, zoom_start=11):
-    """Creates a basic Folium map centered on Bengaluru (simulated center)."""
-    # Use a dark tile set for better contrast when visualizing night lights or heatmaps
+    """
+    Creates a basic Folium map centered on Bengaluru (simulated center).
+    Uses satellite imagery by default, or dark tiles for 'Night Lights' analysis.
+    """
+    # Set default tile to Satellite, but use dark_matter for the Night Lights analysis
+    if st.session_state.get('analysis_type') == 'Night Lights':
+        tiles_to_use = "CartoDB dark_matter"
+        attr_text = "CartoDB / Simulated Data"
+    else:
+        # Use Satellite imagery as the new default for an urban analysis context
+        tiles_to_use = "Esri WorldImagery" 
+        attr_text = 'Esri WorldImagery / Simulated Data'
+
     m = folium.Map(
         location=[center_lat, center_lon],
         zoom_start=zoom_start,
-        tiles="CartoDB dark_matter" if st.session_state.get('analysis_type') == 'Night Lights' else "OpenStreetMap",
-        attr='Simulated Data'
+        tiles=tiles_to_use,
+        attr=attr_text
     )
     return m
 
@@ -37,6 +48,8 @@ def get_growth_zones():
 @st.cache_data
 def get_simulated_trend_data(time_comparison):
     """Generates synthetic data for the 5-Year Development Trend chart."""
+    # Since time_comparison is now hardcoded to "2020 vs 2025" in the main function,
+    # this logic is slightly simplified to just handle the default data.
     if '2010' in time_comparison:
         years = ['2010', '2015', '2020', '2025']
         built_up_area = [550, 650, 790, 915]
@@ -95,8 +108,11 @@ def create_urban_growth_analyzer(stakeholder):
         st.info("👥 **Citizen View:** Understand development patterns and resource stress in your neighborhood.") 
     
     # Urban growth analysis controls 
-    col1, col2, col3 = st.columns(3) 
+    col1, col2 = st.columns(2) # Changed to 2 columns
     
+    # Time comparison is now hardcoded as requested.
+    time_comparison = "2020 vs 2025" 
+
     with col1: 
         analysis_type = st.selectbox( 
             "Analysis Type:", 
@@ -104,13 +120,7 @@ def create_urban_growth_analyzer(stakeholder):
             key='analysis_type' # Stored in session_state for dynamic map tiles
         ) 
     
-    with col2: 
-        time_comparison = st.selectbox( 
-            "Time Comparison:", 
-            ["2020 vs 2025", "2015 vs 2025", "2010 vs 2025", "Yearly Progression"] 
-        ) 
-    
-    with col3: 
+    with col2: # Moved from col3
         data_overlay = st.selectbox( 
             "Overlay Data:", 
             ["Population Density", "Infrastructure", "Transport Networks", "Zoning Plans"] 
