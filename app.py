@@ -237,7 +237,7 @@ for alert in alerts:
     <div class="alert-box {severity}">
         <span class="icon">{icon}</span>
         <div>
-            <div>**{alert['Type']}** at **{alert['Location']}**</div>
+            <div>{alert['Type']} at {alert['Location']}</div>
             <div style="font-size: 0.9em; font-weight: normal;">{alert['Time']}</div>
         </div>
     </div>
