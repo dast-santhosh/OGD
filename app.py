@@ -179,11 +179,7 @@ if module == "Overview":
 
     map_data = st_folium(base_map, width=700, height=500)
 
-    # Recent alerts
-    # ... (inside the if module == "Overview": block)
-
-# Recent alerts
-st.subheader("🚨 Recent Environmental Alerts")
+    st.subheader("🚨 Recent Environmental Alerts")
 
 alerts = [
     {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High"},
@@ -245,6 +241,12 @@ for alert in alerts:
     st.markdown(alert_html, unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+    # Recent alerts
+    # ... (inside the if module == "Overview": block)
+
+# Recent alerts
+
 
 # ... (the rest of your code)
 
