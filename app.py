@@ -181,66 +181,66 @@ if module == "Overview":
 
     st.subheader("🚨 Recent Environmental Alerts")
 
-alerts = [
-    {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High"},
-    {"Time": "6 hours ago", "Type": "Air Quality", "Location": "Silk Board", "Severity": "Moderate"},
-    {"Time": "1 day ago", "Type": "Water Quality", "Location": "Bellandur Lake", "Severity": "High"},
-    {"Time": "2 days ago", "Type": "Flooding Risk", "Location": "Majestic Area", "Severity": "Low"}
-]
-
-# Custom CSS for the alert boxes (dark mode theme)
-alert_style = """
-<style>
-.alert-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.alert-box {
-    padding: 15px;
-    border-radius: 8px;
-    color: white;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-}
-.alert-box.high {
-    background-color: #dc3545; /* Red */
-    border-left: 5px solid #bd2130;
-}
-.alert-box.moderate {
-    background-color: #ffc107; /* Orange/Yellow */
-    border-left: 5px solid #d39e00;
-}
-.alert-box.low {
-    background-color: #007bff; /* Blue */
-    border-left: 5px solid #0056b3;
-}
-.alert-box .icon {
-    margin-right: 15px;
-    font-size: 24px;
-}
-</style>
-"""
-st.markdown(alert_style, unsafe_allow_html=True)
-
-# Generate and display the alerts
-st.markdown('<div class="alert-container">', unsafe_allow_html=True)
-for alert in alerts:
-    severity = alert['Severity'].lower()
-    icon = "⚠️" if severity == "high" else "📢"
-    alert_html = f"""
-    <div class="alert-box {severity}">
-        <span class="icon">{icon}</span>
-        <div>
-            <div>{alert['Type']} at {alert['Location']}</div>
-            <div style="font-size: 0.9em; font-weight: normal;">{alert['Time']}</div>
-        </div>
-    </div>
+    alerts = [
+        {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High"},
+        {"Time": "6 hours ago", "Type": "Air Quality", "Location": "Silk Board", "Severity": "Moderate"},
+        {"Time": "1 day ago", "Type": "Water Quality", "Location": "Bellandur Lake", "Severity": "High"},
+        {"Time": "2 days ago", "Type": "Flooding Risk", "Location": "Majestic Area", "Severity": "Low"}
+    ]
+    
+    # Custom CSS for the alert boxes (dark mode theme)
+    alert_style = """
+    <style>
+    .alert-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .alert-box {
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+    }
+    .alert-box.high {
+        background-color: #dc3545; /* Red */
+        border-left: 5px solid #bd2130;
+    }
+    .alert-box.moderate {
+        background-color: #ffc107; /* Orange/Yellow */
+        border-left: 5px solid #d39e00;
+    }
+    .alert-box.low {
+        background-color: #007bff; /* Blue */
+        border-left: 5px solid #0056b3;
+    }
+    .alert-box .icon {
+        margin-right: 15px;
+        font-size: 24px;
+    }
+    </style>
     """
-    st.markdown(alert_html, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown(alert_style, unsafe_allow_html=True)
+    
+    # Generate and display the alerts
+    st.markdown('<div class="alert-container">', unsafe_allow_html=True)
+    for alert in alerts:
+        severity = alert['Severity'].lower()
+        icon = "⚠️" if severity == "high" else "📢"
+        alert_html = f"""
+        <div class="alert-box {severity}">
+            <span class="icon">{icon}</span>
+            <div>
+                <div>{alert['Type']} at {alert['Location']}</div>
+                <div style="font-size: 0.9em; font-weight: normal;">{alert['Time']}</div>
+            </div>
+        </div>
+        """
+        st.markdown(alert_html, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Recent alerts
     # ... (inside the if module == "Overview": block)
