@@ -247,7 +247,8 @@ def fetch_water_related_data(lat: float, lon: float) -> Dict[str, Any]:
         'success': False,
         'current_soil_moisture': 0.35, # Moderate moisture content
         'daily_precipitation': pd.DataFrame({
-            'Date': mock_times.date.unique()[:7],
+            # FIX APPLIED HERE: Use np.unique on the .date array, as .date returns a numpy array which lacks .unique()
+            'Date': np.unique(mock_times.date)[:7],
             'Rainfall (mm)': [0, 0.5, 5.0, 15.2, 8.1, 0, 0]
         }),
         'soil_moisture_trend': pd.DataFrame({
