@@ -9,7 +9,7 @@ from services.nasa_service import NASAService
 from utils.data_utils import get_bengaluru_coordinates
 # --- API Configuration & Environment Variables (Gemini API) ---
 GEMINI_API_KEY = "AIzaSyBdmm58juT-4EL5Vc78sXhtqNZ8dsxv8c"
-GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
+GEMINI_MODEL = "gemini-1.5-pro"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
 
 # Helper function to call the Gemini API using requests
