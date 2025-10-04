@@ -4,11 +4,11 @@ import json
 import os
 from typing import Dict, List, Optional
 # Corrected Imports: Use relative paths to access services and utils modules
-from ..services.gemini_service import GeminiService
-from ..services.weather_service import WeatherService
-from ..services.nasa_service import NASAService
-from ..utils.data_utils import get_bengaluru_coordinates
-
+from services.gemini_service import GeminiService
+from services.weather_service import WeatherService
+from services.nasa_service import WeatherService
+from services.nasa_service import NASAService
+from utils.data_utils import get_bengaluru_coordinates
 # --- API Configuration & Environment Variables (Gemini API) ---
 GEMINI_API_KEY = "AIzaSyBdmm58juT-4EL5Vc78sXhtqNZ8dsxv8c"
 GEMINI_MODEL = "gemini-2.5-flash-preview-05-20"
