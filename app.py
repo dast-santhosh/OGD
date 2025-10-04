@@ -1,8 +1,8 @@
-import streamlit as st
-import folium
-from streamlit_folium import st_folium
-import pandas as pd
-import plotly.express as px
+import streamlit as st 
+import folium 
+from streamlit_folium import st_folium 
+import pandas as pd 
+import plotly.express as px 
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
@@ -79,6 +79,11 @@ for urban planners, policymakers, and citizens.
 # Add logos to the sidebar
 # FIX: Replaced deprecated `use_column_width` with `use_container_width`
 st.sidebar.image("logo1.png", use_container_width=True)
+
+# --- Added Brand and Subtitle ---
+st.sidebar.title("AEROTERRA")
+st.sidebar.markdown("### Bangalore's Geospatial Dashboard")
+# ---------------------------------
 
 # Sidebar for stakeholder selection and navigation
 st.sidebar.title("🎯 Stakeholder Dashboard")
