@@ -6,6 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
+import requests
 
 # Import custom components (assuming these exist in your project structure)
 from components.heat_map import create_heat_map
@@ -93,6 +94,10 @@ module = st.sidebar.selectbox(
     ["Overview", "Heat Islands", "Water Monitoring", "Air Quality", "Urban Growth", "Community Reports", "AI Assistant"]
 )
 
+# Global variables for Bengaluru's coordinates
+BENGALURU_LAT = 12.9716
+BENGALURU_LON = 77.5946
+
 # Load environmental data
 @st.cache_data
 def load_data():
@@ -100,25 +105,65 @@ def load_data():
 
 env_data = load_data()
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def get_live_weather_data():
+    """
+    Fetches real-time weather and air quality data from Open-Meteo APIs.
+    """
+    try:
+        # Fetching temperature and other weather data
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=temperature_2m,relative_humidity_2m"
+        weather_response = requests.get(weather_url)
+        weather_response.raise_for_status()
+        weather_data = weather_response.json()
+        current_temp = weather_data['current']['temperature_2m']
+        
+        # Fetching air quality data
+        aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=european_aqi"
+        aqi_response = requests.get(aqi_url)
+        aqi_response.raise_for_status()
+        aqi_data = aqi_response.json()
+        current_aqi = aqi_data['current']['european_aqi']
+        
+        return {
+            "temperature": current_temp,
+            "aqi": current_aqi
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching live data: {e}")
+        return None
+
 # Main dashboard content based on selected module
 if module == "Overview":
     st.header(f"📈 {stakeholder} Overview Dashboard")
-
+    
+    # Fetch live data
+    live_data = get_live_weather_data()
+    
     # Key metrics row
     col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        st.metric("🌡️ Avg Temperature", "32.5°C", "+2.1°C")
+    if live_data:
+        with col1:
+            st.metric("🌡️ Avg Temperature", f"{live_data['temperature']}°C")
 
+        with col3:
+            st.metric("🌬️ Air Quality (AQI)", f"{live_data['aqi']}")
+    else:
+        # Use mock data if API call fails
+        with col1:
+            st.metric("🌡️ Avg Temperature", "32.5°C", "+2.1°C")
+
+        with col3:
+            st.metric("🌬️ Air Quality (AQI)", "156", "+12")
+
+    # Metrics that don't change in real-time
     with col2:
         st.metric("💧 Lake Health Index", "6.2/10", "-0.8")
-
-    with col3:
-        st.metric("🌬️ Air Quality (AQI)", "156", "+12")
-
+        
     with col4:
         st.metric("🏙️ Green Cover", "18.2%", "-1.3%")
-
+        
     # Overview map
     st.subheader("🗺️ Bengaluru Environmental Overview")
     base_map = create_base_map()
@@ -166,13 +211,12 @@ elif module == "AI Assistant":
 # Main Content Footer (just above the fixed footer)
 st.markdown("---")
 st.markdown("""
-**Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM | **Last Updated:** {current_time}
+**Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM, Open-Meteo API | **Last Updated:** {current_time}
 """.format(current_time=datetime.now().strftime("%Y-%m-%d %H:%M UTC")))
 
 # Project Team Credits
 st.markdown("""
-**Project by:**
-Santhosh P
+**Project by:** Santhosh P 
 Aysu A & Team
 """)
 
