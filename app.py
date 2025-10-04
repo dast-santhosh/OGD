@@ -314,15 +314,16 @@ for urban resilience planning and citizen awareness.
 """)
 
 # --- Sidebar Logo/Branding ---
+# Using st.sidebar.image for the user-provided logo.png file
+st.sidebar.image("logo1.png", use_column_width=True)
+
+# Adding a stylized title below the logo image
 st.sidebar.markdown(
     """
     <div style='text-align: center; padding: 10px 0 20px 0;'>
-        <h1 style='color: #4CAF50; font-size: 28px; margin-bottom: 0px;'>
-            🌱 **BENGALURU**
-        </h1>
-        <p style='color: #9CA3AF; font-size: 14px; margin-top: 0px;'>
-            Resilience Hub
-        </p>
+        <h4 style='color: #4CAF50; margin-bottom: 0px;'>
+            **BENGALURU Resilience Hub**
+        </h4>
     </div>
     """, unsafe_allow_html=True
 )
