@@ -26,16 +26,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to force the sidebar into light mode and add footer
+# Custom CSS to force the sidebar into DARK mode and adjust the main container
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 html, body, [class*="st-"] { font-family: 'Inter', sans-serif; }
 
+/* 0. Force Main App Container to Dark Mode Background */
+[data-testid="stAppViewContainer"] > .main {
+    background-color: #0E1117 !important; /* Streamlit default dark mode background */
+    color: #FAFAFA; /* Light text for dark background */
+}
+/* 0.1 Force all text in main content to be light */
+h1, h2, h3, h4, p, label, .stMarkdown {
+    color: #FAFAFA !important;
+}
+
 /* 1. Sidebar Background and General Text Color */
 section[data-testid="stSidebar"] {
-    background-color: #f0f2f6; /* Light gray background */
-    border-right: 2px solid #e0e0e0;
+    background-color: #1F2937; /* Dark slate background */
+    border-right: 2px solid #374151;
 }
 
 /* 2. Sidebar Header Titles and Text */
@@ -45,14 +55,15 @@ section[data-testid="stSidebar"] h3,
 section[data-testid="stSidebar"] h4,
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] label {
-    color: #31333F !important; /* Dark text color */
+    color: #F9FAFB !important; /* Light text color */
 }
 
 /* 3. Selectbox/Dropdown background and text */
 section[data-testid="stSidebar"] div[role="button"] {
-    background-color: white;
-    color: #31333F;
+    background-color: #374151; /* Darker button background */
+    color: #F9FAFB;
     border-radius: 8px;
+    border: 1px solid #4B5563;
 }
 
 /* 4. Fixed Footer Styling */
@@ -61,13 +72,13 @@ section[data-testid="stSidebar"] div[role="button"] {
     left: 0;
     bottom: 0;
     width: 100%;
-    background-color: #31333F; /* Dark background for visibility */
+    background-color: #151E28; /* Very dark background for footer */
     color: white;
     text-align: center;
     padding: 10px;
     font-size: 14px;
-    border-top: 1px solid #4f4f4f;
-    z-index: 1000; /* Ensure it stays on top of other elements */
+    border-top: 1px solid #374151;
+    z-index: 1000;
 }
 
 /* 5. Main Content Styling */
@@ -78,10 +89,17 @@ div.block-container {
 
 /* 6. Metric Styling */
 [data-testid="stMetric"] {
-    background-color: #ffffff;
+    background-color: #1E2B3E; /* Dark card background for metrics */
     border-radius: 12px;
     padding: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    border: 1px solid #374151;
+    color: #FAFAFA !important;
+}
+
+/* 7. Dataframe styling for dark mode */
+.stDataFrame {
+    color: #FAFAFA;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -188,6 +206,8 @@ def create_trend_graph():
     
     max_retries = 3
     base_delay = 1
+    
+    df = None # Initialize df
 
     for attempt in range(max_retries):
         try:
@@ -211,60 +231,70 @@ def create_trend_graph():
             aqi_response.raise_for_status()
             aqi_data = aqi_response.json()
 
-            # Create DataFrame
+            # Create DataFrame from live data
             df = pd.DataFrame({
                 'date': pd.to_datetime(weather_data['daily']['time']),
                 'max_temperature': weather_data['daily']['temperature_2m_max'],
                 'max_aqi': aqi_data['daily']['european_aqi_max']
             })
-
-            # Create a dual-axis plot
-            fig = make_subplots(specs=[{"secondary_y": True}])
-
-            # Add Temperature trace (Red for urgency)
-            fig.add_trace(
-                go.Scatter(x=df['date'], y=df['max_temperature'], name="Max Daily Temp (°C)", line=dict(color='red', width=3)),
-                secondary_y=False,
-            )
-
-            # Add AQI trace (Orange/Brown for pollution urgency)
-            fig.add_trace(
-                go.Scatter(x=df['date'], y=df['max_aqi'], name="Max Daily AQI", line=dict(color='orange', width=3, dash='dot')),
-                secondary_y=True,
-            )
-
-            # Add shaded area for high-risk zones (Temperature > 35C)
-            fig.add_hrect(y0=35, y1=df['max_temperature'].max() + 2, line_width=0, fillcolor="rgba(255, 0, 0, 0.1)", secondary_y=False, annotation_text="Danger Heat Zone", annotation_position="top left")
-            # Add shaded area for poor AQI (AQI > 100)
-            fig.add_hrect(y0=100, y1=df['max_aqi'].max() + 20, line_width=0, fillcolor="rgba(165, 42, 42, 0.1)", secondary_y=True, annotation_text="Danger Air Zone", annotation_position="bottom right")
-
-
-            # Update layout for maximum impact
-            fig.update_layout(
-                title_text="<b>⚠️ Environmental Stress Trends: Max Temp vs. Air Quality (Last 7 Days)</b>",
-                title_font_size=20,
-                title_font_color="#31333F",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                hovermode="x unified",
-                template="plotly_white",
-                margin=dict(l=20, r=20, t=50, b=20)
-            )
-
-            fig.update_xaxes(title_text="Date", showgrid=False)
-            fig.update_yaxes(title_text="Max Temperature (°C)", secondary_y=False, color='red', gridcolor='#e0e0e0')
-            fig.update_yaxes(title_text="Max Air Quality Index (AQI)", secondary_y=True, color='orange', gridcolor='#e0e0e0')
-            fig.update_traces(mode='lines+markers')
-
-            return fig
+            break # Success, exit loop
         
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
                 delay = base_delay * (2 ** attempt)
                 time.sleep(delay)
             else:
-                st.warning(f"Failed to fetch historical data after {max_retries} attempts.")
-                return None
-    return None
+                # API failure, use mock data fallback
+                st.warning(f"Failed to fetch historical data after {max_retries} attempts. Displaying simulated trend data.")
+                dates = [start_date + timedelta(days=i) for i in range(7)]
+                df = pd.DataFrame({
+                    'date': dates,
+                    'max_temperature': [32.5, 33.0, 34.1, 35.5, 34.9, 33.5, 32.8], # Mock temps
+                    'max_aqi': [90, 105, 120, 115, 100, 85, 95] # Mock AQI
+                })
+                break
+    
+    if df is None or df.empty:
+        return None
+
+    # Create a dual-axis plot
+    fig = make_subplots(specs=[{"secondary_y": True}])
+
+    # Add Temperature trace (Red for urgency)
+    fig.add_trace(
+        go.Scatter(x=df['date'], y=df['max_temperature'], name="Max Daily Temp (°C)", line=dict(color='red', width=3)),
+        secondary_y=False,
+    )
+
+    # Add AQI trace (Orange/Brown for pollution urgency)
+    fig.add_trace(
+        go.Scatter(x=df['date'], y=df['max_aqi'], name="Max Daily AQI", line=dict(color='orange', width=3, dash='dot')),
+        secondary_y=True,
+    )
+
+    # Add shaded area for high-risk zones (Temperature > 35C)
+    fig.add_hrect(y0=35, y1=df['max_temperature'].max() + 2, line_width=0, fillcolor="rgba(255, 0, 0, 0.1)", secondary_y=False, annotation_text="Danger Heat Zone", annotation_position="top left")
+    # Add shaded area for poor AQI (AQI > 100)
+    fig.add_hrect(y0=100, y1=df['max_aqi'].max() + 20, line_width=0, fillcolor="rgba(165, 42, 42, 0.1)", secondary_y=True, annotation_text="Danger Air Zone", annotation_position="bottom right")
+
+
+    # Update layout for maximum impact
+    fig.update_layout(
+        title_text="<b>⚠️ Environmental Stress Trends: Max Temp vs. Air Quality (Last 7 Days)</b>",
+        title_font_size=20,
+        title_font_color="#FAFAFA", # Updated for Dark Mode
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+        template="plotly_dark", # Use plotly dark template
+        margin=dict(l=20, r=20, t=50, b=20)
+    )
+
+    fig.update_xaxes(title_text="Date", showgrid=False)
+    fig.update_yaxes(title_text="Max Temperature (°C)", secondary_y=False, color='red', gridcolor='#374151')
+    fig.update_yaxes(title_text="Max Air Quality Index (AQI)", secondary_y=True, color='orange', gridcolor='#374151')
+    fig.update_traces(mode='lines+markers')
+
+    return fig
 
 # ====================================================================
 # 4. MAIN APPLICATION LAYOUT
@@ -322,7 +352,7 @@ if module == "Overview":
     if trend_fig:
         st.plotly_chart(trend_fig, use_container_width=True)
     else:
-        st.error("Failed to load historical data for the trend graph. Please check API connectivity.")
+        st.error("Failed to load or generate the trend graph.")
 
     # Overview map
     st.subheader("🗺️ Key Environmental Monitoring Locations")
