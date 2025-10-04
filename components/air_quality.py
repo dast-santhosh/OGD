@@ -5,7 +5,7 @@ import plotly.express as px
 import folium
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
-import requests # Kept for the Urban Heat Map section
+import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 
@@ -13,7 +13,7 @@ from typing import Dict, List, Any
 BENGALURU_LAT = 12.9716
 BENGALURU_LON = 77.5946
 WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
-# AQI_API_URL is no longer needed as we use internal mock data
+AQI_API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality" # New API URL for AQI
 
 # --- UTILITY FUNCTIONS ---
 
@@ -46,7 +46,7 @@ def get_aqi_color(aqi: float) -> str:
     if aqi <= 90: return "red"
     return "darkred"
 
-# --- API INTEGRATION (Weather - Kept) ---
+# --- API INTEGRATION ---
 
 @st.cache_data(ttl=3600) # Cache the data for 1 hour
 def fetch_weather_data(lat: float, lon: float) -> Dict[str, Any]:
@@ -96,52 +96,148 @@ def fetch_weather_data(lat: float, lon: float) -> Dict[str, Any]:
         return {'success': False, 'current_temp': 30.0, 'daily_trend': None}
 
 
+@st.cache_data(ttl=3600) # Cache the data for 1 hour
+def fetch_air_quality_data(lat: float, lon: float) -> Dict[str, Any]:
+    """Fetches current AQI and forecast from Open-Meteo Air Quality API."""
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": ["european_aqi", "pm10", "pm2_5", "nitrogen_dioxide", "sulphur_dioxide", "ozone"],
+        "timezone": "Asia/Kolkata",
+        "forecast_days": 7
+    }
+    
+    # Define a consistent mock data fallback structure
+    now = datetime.now()
+    mock_hours = pd.to_datetime(pd.date_range(end=now, periods=24*7, freq='H'))
+    mock_daily_dates = pd.date_range(end=now.date(), periods=7, freq='D').date
+    current_aqi_mock = 55.0 # Moderate fallback value
+    
+    mock_pollutant_values = [28.0, 45.0, 25.0, 10.0, 40.0] 
+    
+    mock_data = {
+        'success': False,
+        'current_aqi': current_aqi_mock,
+        'pollutant_data_df': pd.DataFrame({
+            "Pollutant": ["$\text{PM}_{2.5}$", "$\text{PM}_{10}$", "$\text{NO}_{2}$", "$\text{SO}_{2}$", "$\text{O}_{3}$"],
+            "Value ($\mu g / m^3$)": mock_pollutant_values, 
+            "EAC Limit": [25, 50, 40, 20, 100]
+        }),
+        'daily_trend_df': pd.DataFrame({
+            'Date': mock_daily_dates,
+            'AQI': [42, 48, 52, 58, 65, 50, current_aqi_mock]
+        }),
+        'stream_long_df': pd.DataFrame({
+            'Time': mock_hours,
+            'PM2.5': np.random.uniform(15, 40, size=len(mock_hours)),
+            'PM10': np.random.uniform(30, 60, size=len(mock_hours)),
+            'NO2': np.random.uniform(15, 35, size=len(mock_hours)),
+            'SO2': np.random.uniform(5, 15, size=len(mock_hours)),
+            'O3': np.random.uniform(30, 50, size=len(mock_hours)),
+        }).melt(id_vars=['Time'], value_vars=['PM2.5', 'PM10', 'NO2', 'SO2', 'O3'], var_name='Pollutant', value_name='Concentration')
+    }
+    
+    try:
+        response = requests.get(AQI_API_URL, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        hourly_data = data.get('hourly', {})
+        times = [datetime.fromisoformat(t) for t in hourly_data['time']]
+        
+        # 1. Current AQI - Find the latest non-null AQI value
+        aqi_values = hourly_data.get('european_aqi', [])
+        latest_aqi = next((aqi for aqi in reversed(aqi_values) if aqi is not None), mock_data['current_aqi'])
+        
+        # Determine the index of the latest AQI value
+        try:
+            latest_index = len(aqi_values) - 1 - aqi_values[::-1].index(latest_aqi) if latest_aqi in aqi_values else -1
+        except ValueError:
+            # Handle case where latest_aqi came from mock, but aqi_values is not empty/full of Nones
+            latest_index = len(aqi_values) - 1
+            
+        # 2. Pollutant Data (use the same index as the latest AQI, fallback to mock if API returns None)
+        pollutant_map = {
+            "$\text{PM}_{2.5}$": hourly_data.get('pm2_5', [None])[latest_index] if latest_index != -1 else None,
+            "$\text{PM}_{10}$": hourly_data.get('pm10', [None])[latest_index] if latest_index != -1 else None,
+            "$\text{NO}_{2}$": hourly_data.get('nitrogen_dioxide', [None])[latest_index] if latest_index != -1 else None,
+            "$\text{SO}_{2}$": hourly_data.get('sulphur_dioxide', [None])[latest_index] if latest_index != -1 else None,
+            "$\text{O}_{3}$": hourly_data.get('ozone', [None])[latest_index] if latest_index != -1 else None
+        }
+
+        pollutant_df_real = pd.DataFrame({
+            "Pollutant": ["$\text{PM}_{2.5}$", "$\text{PM}_{10}$", "$\text{NO}_{2}$", "$\text{SO}_{2}$", "$\text{O}_{3}$"],
+            "Value ($\mu g / m^3$)": [pollutant_map.get(p) if pollutant_map.get(p) is not None else mock_pollutant_values[i] for i, p in enumerate(["$\text{PM}_{2.5}$", "$\text{PM}_{10}$", "$\text{NO}_{2}$", "$\text{SO}_{2}$", "$\text{O}_{3}$"])], 
+            "EAC Limit": [25, 50, 40, 20, 100]
+        })
+
+        # 3. Daily Trend DF
+        hourly_df = pd.DataFrame({
+            'Time': times,
+            'AQI': hourly_data.get('european_aqi', [])
+        }).dropna(subset=['AQI'])
+        
+        hourly_df['Date'] = hourly_df['Time'].dt.date
+        daily_trend_df_real = hourly_df.groupby('Date')['AQI'].mean().reset_index().rename(columns={'AQI': 'AQI'})
+        
+        # 4. Streamgraph DF
+        stream_df_real = pd.DataFrame({
+            'Time': times,
+            'PM2.5': hourly_data.get('pm2_5', []),
+            'PM10': hourly_data.get('pm10', []),
+            'NO2': hourly_data.get('nitrogen_dioxide', []),
+            'SO2': hourly_data.get('sulphur_dioxide', []),
+            'O3': hourly_data.get('ozone', []),
+        })
+        # Keep only the last 7 days of hourly data for the streamgraph
+        stream_df_real = stream_df_real.dropna(subset=['PM2.5', 'PM10', 'NO2', 'SO2', 'O3']).tail(24 * 7)
+
+        pollutant_cols = ['PM2.5', 'PM10', 'NO2', 'SO2', 'O3']
+        stream_long_real = stream_df_real.melt(id_vars=['Time'], value_vars=pollutant_cols, 
+                                               var_name='Pollutant', value_name='Concentration')
+
+        return {
+            'success': True,
+            'current_aqi': latest_aqi,
+            'pollutant_data_df': pollutant_df_real,
+            'daily_trend_df': daily_trend_df_real,
+            'stream_long_df': stream_long_real
+        }
+    except requests.exceptions.RequestException as e:
+        st.error(f"Air Quality API call failed. Displaying mock data for fall-back. Error: {e}")
+        return mock_data
+    except Exception as e:
+        st.error(f"An unexpected error occurred while processing AQI data. Displaying mock data for fall-back. Error: {e}")
+        return mock_data
+
+
 # --- DASHBOARD COMPONENTS ---
 
 def create_air_quality_dashboard(stakeholder):
-    """Generates the Air Quality Dashboard module using internal MOCK data."""
-    st.header("🌬️ Air Quality Monitoring Dashboard (Mock Data)")
-    st.warning("⚠️ This section uses hardcoded mock data for consistent demonstration, bypassing external APIs.")
-
-    # --- HARDCODED MOCK DATA (MODERATE AQI) ---
-    current_aqi = 55.0  # Set to "Moderate"
+    """Generates the Air Quality Dashboard module using live API data with mock data fallback."""
+    
+    aqi_data = fetch_air_quality_data(BENGALURU_LAT, BENGALURU_LON)
+    
+    # Assign fetched data to local variables for clarity
+    current_aqi = aqi_data['current_aqi']
     current_category = get_aqi_category(current_aqi)
+    pollutant_df = aqi_data['pollutant_data_df']
+    daily_trend_df = aqi_data['daily_trend_df']
+    stream_long_df = aqi_data['stream_long_df']
     
-    # Mock data for current pollutant levels (μg/m³) - consistent with Moderate AQI
-    pollutant_data = {
-        "Pollutant": ["$\text{PM}_{2.5}$", "$\text{PM}_{10}$", "$\text{NO}_{2}$", "$\text{SO}_{2}$", "$\text{O}_{3}$"],
-        "Value ($\mu g / m^3$)": [28.0, 45.0, 25.0, 10.0, 40.0], 
-        "EAC Limit": [25, 50, 40, 20, 100]
-    }
-    pollutant_df = pd.DataFrame(pollutant_data)
+    st.header("🌬️ Air Quality Monitoring Dashboard")
     
-    # Mock data for 7-day average trend
-    daily_trend_df = pd.DataFrame({
-        'Date': pd.date_range(end=datetime.now(), periods=7, freq='D').date,
-        'AQI': [42, 48, 52, 58, 65, 50, current_aqi] # Showing a slight spike a couple of days ago
-    })
-    
-    # Generate mock data for Streamgraph (hourly composition)
-    mock_hours = pd.to_datetime(pd.date_range(end=datetime.now(), periods=24*7, freq='H'))
-    mock_stream_df = pd.DataFrame({
-        'Time': mock_hours,
-        # Pollutant levels adjusted for a Moderate day
-        'PM2.5': np.random.uniform(15, 40, size=len(mock_hours)),
-        'PM10': np.random.uniform(30, 60, size=len(mock_hours)),
-        'NO2': np.random.uniform(15, 35, size=len(mock_hours)),
-        'SO2': np.random.uniform(5, 15, size=len(mock_hours)),
-        'O3': np.random.uniform(30, 50, size=len(mock_hours)),
-    })
-    pollutant_cols = ['PM2.5', 'PM10', 'NO2', 'SO2', 'O3']
-    stream_long = mock_stream_df.melt(id_vars=['Time'], value_vars=pollutant_cols, 
-                                      var_name='Pollutant', value_name='Concentration')
-    
-    # --- CHART GENERATION (Using Mock Data) ---
+    if aqi_data['success']:
+        st.info("✅ Displaying **Live Air Quality Data** (Source: Open-Meteo Air Quality API).")
+    else:
+        st.warning("⚠️ Could not connect to the live Air Quality API. Displaying **Mock Data** as a fallback.")
+
+    # --- CHART GENERATION ---
     
     # 1. Streamgraph
     fig_stream = px.area(
-        stream_long, x='Time', y='Concentration', color='Pollutant',
-        title='Hourly Pollutant Stacked Trend (7 Days)', template='plotly_white',
+        stream_long_df, x='Time', y='Concentration', color='Pollutant',
+        title='Hourly Pollutant Stacked Trend (Last 7 Days)', template='plotly_white',
         labels={'Concentration': 'Concentration ($\mu g / m^3$)'}
     )
     fig_stream.update_layout(yaxis=dict(title=None, showgrid=True), xaxis=dict(title=None))
@@ -170,9 +266,9 @@ def create_air_quality_dashboard(stakeholder):
 
     # Stakeholder Messaging
     if stakeholder == "Citizens":
-        st.info(f"👥 **Citizen View:** Current AQI is **{current_category}**. Air quality is generally acceptable but could be worse for sensitive groups.")
+        st.info(f"👥 **Citizen View:** Current AQI is **{current_category}**. Consult your local health guidelines.")
     elif stakeholder == "BBMP (City Planning)":
-        st.info(f"🏛️ **BBMP Focus:** Current AQI is **{current_category}**. Monitor $\text{PM}_{2.5}$ levels, which are close to the threshold.")
+        st.info(f"🏛️ **BBMP Focus:** Current AQI is **{current_category}**. Analyze pollutant mix for source mitigation.")
     else:
         st.info(f"The **{stakeholder}** view focuses on key pollutants and trends.")
 
@@ -182,7 +278,7 @@ def create_air_quality_dashboard(stakeholder):
         st.subheader("Current Status (EAC Index)")
         # Display AQI safely
         display_aqi = f"{current_aqi:.0f}"
-        st.metric("European AQI", display_aqi, help="European Air Quality Index (EAC) based on mock data.")
+        st.metric("European AQI", display_aqi, help="European Air Quality Index (EAC) based on live/mock data.")
         st.markdown(f"**Health Risk:** <span style='color:{get_aqi_color(current_aqi)};'>**{current_category}**</span>", unsafe_allow_html=True)
         st.markdown("---")
         st.subheader("Key Pollutant Levels")
@@ -217,7 +313,7 @@ def create_air_quality_dashboard(stakeholder):
     st.subheader("Air Quality Monitoring Stations (Simulated Hotspots)")
     aq_map = create_base_map()
     
-    # Simulate variations around the fixed AQI
+    # Simulate variations around the current AQI
     base_aqi = current_aqi
     stations = [
         {'lat': 12.975, 'lon': 77.58, 'name': 'City Centre (High Traffic)', 'type': 'traffic', 'factor': 1.1},
@@ -240,7 +336,6 @@ def create_air_quality_dashboard(stakeholder):
     st_folium(aq_map, width=900, height=550, key="aqi_map", returned_objects=[])
 
 # --- Heat Map Component (Included for completeness and multi-tab functionality) ---
-# (fetch_weather_data and create_heat_map remain unchanged, using the API)
 
 def get_temperature_grid(base_temp: float) -> List[Dict[str, Any]]:
     """Generates simulated temperature points grounded by the real base_temp."""
@@ -358,4 +453,6 @@ if __name__ == "__main__":
         create_air_quality_dashboard(stakeholder_select)
 
     st.markdown("---")
-    st.markdown(f"**Data Source:** Air Quality is Mock Data | Weather is Open-Meteo API | **Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
+    
+    data_source_status = "Live Air Quality (w/ Mock Fallback) and Live Weather" if aqi_data['success'] else "Mock Air Quality and Live Weather"
+    st.markdown(f"**Data Source:** {data_source_status} | **Last Updated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}")
