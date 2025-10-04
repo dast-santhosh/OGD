@@ -19,7 +19,7 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 def get_bengaluru_coordinates() -> List[float]:
     """Returns the central coordinates for Bengaluru."""
-    return [BENGALURU_LAT, BENGALURU_LON]
+    return [BENGALURU_LAT, BENGURU_LON]
 
 def create_base_map(lat: float = BENGALURU_LAT, lon: float = BENGALURU_LON, zoom: int = 11) -> folium.Map:
     """Creates a base Folium map centered on Bengaluru."""
@@ -231,9 +231,9 @@ def create_heat_map(stakeholder: str):
         temp_stats = temp_stats[['name', 'Simulated Temp (°C)', 'Anomaly (°C)', 'Heat Index']]
         temp_stats.set_index('name', inplace=True)
         
-        # Apply conditional formatting for better visualization
+        # FIX: Removed .style.background_gradient which required matplotlib
         st.dataframe(
-            temp_stats.style.background_gradient(cmap='RdYlGn_r', subset=['Simulated Temp (°C)', 'Anomaly (°C)']), 
+            temp_stats, 
             use_container_width=True
         )
 
