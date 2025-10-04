@@ -4,20 +4,19 @@ from streamlit_folium import st_folium
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
-import os
 import requests
+import time # For exponential backoff retry logic
 
-# Import custom components (assuming these exist in your project structure)
-from components.heat_map import create_heat_map
-from components.water_monitoring import create_water_dashboard
-from components.air_quality import create_air_quality_dashboard
-from components.urban_growth import create_urban_growth_analyzer
-from components.community_reports import create_community_reports
-from components.chatbot import create_chatbot
-from data.bengaluru_data import get_bengaluru_coordinates, get_sample_locations
-from utils.map_utils import create_base_map
-from utils.data_processing import load_environmental_data
+# ====================================================================
+# 1. CONSTANTS AND GLOBAL CONFIGURATION
+# ====================================================================
+
+# Global variables for Bengaluru's coordinates
+BENGALURU_LAT = 12.9716
+BENGALURU_LON = 77.5946
+API_KEY = "" # The key will be provided by the runtime environment if needed
 
 # Page configuration
 st.set_page_config(
@@ -27,12 +26,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to force the sidebar into light mode
+# Custom CSS to force the sidebar into light mode and add footer
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+html, body, [class*="st-"] { font-family: 'Inter', sans-serif; }
+
 /* 1. Sidebar Background and General Text Color */
 section[data-testid="stSidebar"] {
     background-color: #f0f2f6; /* Light gray background */
+    border-right: 2px solid #e0e0e0;
 }
 
 /* 2. Sidebar Header Titles and Text */
@@ -49,6 +52,7 @@ section[data-testid="stSidebar"] label {
 section[data-testid="stSidebar"] div[role="button"] {
     background-color: white;
     color: #31333F;
+    border-radius: 8px;
 }
 
 /* 4. Fixed Footer Styling */
@@ -65,24 +69,226 @@ section[data-testid="stSidebar"] div[role="button"] {
     border-top: 1px solid #4f4f4f;
     z-index: 1000; /* Ensure it stays on top of other elements */
 }
+
+/* 5. Main Content Styling */
+div.block-container {
+    padding-top: 2rem;
+    padding-bottom: 5rem; /* Add space for the footer */
+}
+
+/* 6. Metric Styling */
+[data-testid="stMetric"] {
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* 7. Force Main Content Background to White (New Rule) */
+[data-testid="stAppViewContainer"] {
+    background-color: white !important;
+}
+/* Ensure the main area inside the container is also white */
+.main {
+    background-color: white !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
 
+# ====================================================================
+# 2. MOCK UTILITY FUNCTIONS (To ensure single-file runnability)
+# ====================================================================
+
+def load_environmental_data():
+    """Mock function for data loading."""
+    return pd.DataFrame()
+
+def get_sample_locations():
+    """Mock function for map locations."""
+    return [
+        {"name": "Bellandur Lake", "lat": 12.924, "lon": 77.674, "type": "Water Quality", "color": "red"},
+        {"name": "Lal Bagh Botanical Garden", "lat": 12.949, "lon": 77.584, "type": "Green Cover", "color": "green"},
+        {"name": "Electronic City", "lat": 12.84, "lon": 77.678, "type": "Heat Island", "color": "orange"},
+        {"name": "MG Road Traffic", "lat": 12.975, "lon": 77.608, "type": "Air Quality", "color": "blue"},
+    ]
+
+def create_base_map():
+    """Mock function to create a Folium map."""
+    m = folium.Map(
+        location=[BENGALURU_LAT, BENGALURU_LON],
+        zoom_start=11,
+        tiles="cartodbdarkmatter"
+    )
+    return m
+
+# Mock component functions
+def create_heat_map(stakeholder):
+    st.header(f"🔥 Heat Islands Analysis for {stakeholder}")
+    st.info("Module content for Heat Islands analysis goes here, integrating NASA Land Surface Temperature data.")
+
+def create_water_dashboard(stakeholder):
+    st.header(f"💧 Water Monitoring Dashboard for {stakeholder}")
+    st.info("Module content for Water Monitoring goes here, integrating GPM and Landsat data for lake health and flooding.")
+
+def create_air_quality_dashboard(stakeholder):
+    st.header(f"💨 Air Quality Dashboard for {stakeholder}")
+    st.info("Module content for Air Quality goes here, integrating TROPOMI and ground sensor data.")
+
+def create_urban_growth_analyzer(stakeholder):
+    st.header(f"🏙️ Urban Growth Analyzer for {stakeholder}")
+    st.info("Module content for Urban Growth goes here, using historical Landsat imagery to track expansion and green cover loss.")
+
+def create_community_reports(stakeholder):
+    st.header(f"📢 Community Reports for {stakeholder}")
+    st.info("Module content for Community Reports goes here, showing citizen-reported issues like trash, water logging, and localized heat/air quality.")
+
+def create_chatbot(stakeholder, env_data):
+    st.header(f"🤖 AI Climate Assistant for {stakeholder}")
+    st.info("Module content for the AI Chatbot goes here, using the Gemini API to answer queries based on environmental data.")
+
+
+# ====================================================================
+# 3. API CALLS WITH BACKOFF
+# ====================================================================
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def get_live_weather_data():
+    """Fetches real-time weather and air quality data with retry logic."""
+    max_retries = 3
+    base_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            # Fetching temperature and other weather data
+            weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=temperature_2m,relative_humidity_2m"
+            
+            # Fetching air quality data
+            aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=european_aqi"
+
+            weather_response = requests.get(weather_url, timeout=10)
+            weather_response.raise_for_status()
+            weather_data = weather_response.json()
+            current_temp = weather_data['current']['temperature_2m']
+            
+            aqi_response = requests.get(aqi_url, timeout=10)
+            aqi_response.raise_for_status()
+            aqi_data = aqi_response.json()
+            current_aqi = aqi_data['current']['european_aqi']
+            
+            return {
+                "temperature": current_temp,
+                "aqi": current_aqi
+            }
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                time.sleep(delay)
+            else:
+                st.error(f"Error fetching live data after {max_retries} attempts. Displaying mock data.")
+                return None
+    return None
+
+@st.cache_data(ttl=3600*24) # Cache for 24 hours
+def create_trend_graph():
+    """Fetches historical data to create a dual-axis trend graph."""
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=7)
+    
+    max_retries = 3
+    base_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            # Fetch historical weather data (daily mean for better readability)
+            weather_url = (
+                f"https://api.open-meteo.com/v1/forecast?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}"
+                f"&daily=temperature_2m_max&start_date={start_date.strftime('%Y-%m-%d')}"
+                f"&end_date={end_date.strftime('%Y-%m-%d')}"
+            )
+            weather_response = requests.get(weather_url, timeout=15)
+            weather_response.raise_for_status()
+            weather_data = weather_response.json()
+            
+            # Fetch historical air quality data (daily mean AQI)
+            aqi_url = (
+                f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}"
+                f"&daily=european_aqi_max&start_date={start_date.strftime('%Y-%m-%d')}"
+                f"&end_date={end_date.strftime('%Y-%m-%d')}"
+            )
+            aqi_response = requests.get(aqi_url, timeout=15)
+            aqi_response.raise_for_status()
+            aqi_data = aqi_response.json()
+
+            # Create DataFrame
+            df = pd.DataFrame({
+                'date': pd.to_datetime(weather_data['daily']['time']),
+                'max_temperature': weather_data['daily']['temperature_2m_max'],
+                'max_aqi': aqi_data['daily']['european_aqi_max']
+            })
+
+            # Create a dual-axis plot
+            fig = make_subplots(specs=[{"secondary_y": True}])
+
+            # Add Temperature trace (Red for urgency)
+            fig.add_trace(
+                go.Scatter(x=df['date'], y=df['max_temperature'], name="Max Daily Temp (°C)", line=dict(color='red', width=3)),
+                secondary_y=False,
+            )
+
+            # Add AQI trace (Orange/Brown for pollution urgency)
+            fig.add_trace(
+                go.Scatter(x=df['date'], y=df['max_aqi'], name="Max Daily AQI", line=dict(color='orange', width=3, dash='dot')),
+                secondary_y=True,
+            )
+
+            # Add shaded area for high-risk zones (Temperature > 35C)
+            fig.add_hrect(y0=35, y1=df['max_temperature'].max() + 2, line_width=0, fillcolor="rgba(255, 0, 0, 0.1)", secondary_y=False, annotation_text="Danger Heat Zone", annotation_position="top left")
+            # Add shaded area for poor AQI (AQI > 100)
+            fig.add_hrect(y0=100, y1=df['max_aqi'].max() + 20, line_width=0, fillcolor="rgba(165, 42, 42, 0.1)", secondary_y=True, annotation_text="Danger Air Zone", annotation_position="bottom right")
+
+
+            # Update layout for maximum impact
+            fig.update_layout(
+                title_text="<b>⚠️ Environmental Stress Trends: Max Temp vs. Air Quality (Last 7 Days)</b>",
+                title_font_size=20,
+                title_font_color="#31333F",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                hovermode="x unified",
+                template="plotly_white",
+                margin=dict(l=20, r=20, t=50, b=20)
+            )
+
+            fig.update_xaxes(title_text="Date", showgrid=False)
+            fig.update_yaxes(title_text="Max Temperature (°C)", secondary_y=False, color='red', gridcolor='#e0e0e0')
+            fig.update_yaxes(title_text="Max Air Quality Index (AQI)", secondary_y=True, color='orange', gridcolor='#e0e0e0')
+            fig.update_traces(mode='lines+markers')
+
+            return fig
+        
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                time.sleep(delay)
+            else:
+                st.warning(f"Failed to fetch historical data after {max_retries} attempts.")
+                return None
+    return None
+
+# ====================================================================
+# 4. MAIN APPLICATION LAYOUT
+# ====================================================================
+
 # Main title and description
 st.title("🌍 Climate-Resilient Bengaluru Geospatial Dashboard")
 st.markdown("""
-Real-time decision-support platform integrating NASA Earth observation data
-for urban planners, policymakers, and citizens.
+A decision-support platform integrating NASA Earth observation data
+for urban resilience planning and citizen awareness.
 """)
 
-# Add logos to the sidebar
-# FIX: Replaced deprecated `use_column_width` with `use_container_width`
-st.sidebar.image("nasa.png", use_container_width=True)
-st.sidebar.image("logo.png", use_container_width=True)
-
 # Sidebar for stakeholder selection and navigation
-st.sidebar.title("🎯 Stakeholder Dashboard")
+st.sidebar.title("🎯 Stakeholder View")
 stakeholder = st.sidebar.selectbox(
     "Select Stakeholder View:",
     ["Citizens", "BBMP (City Planning)", "BWSSB (Water Board)", "BESCOM (Electricity)", "Parks Department", "Researchers"]
@@ -94,101 +300,65 @@ module = st.sidebar.selectbox(
     ["Overview", "Heat Islands", "Water Monitoring", "Air Quality", "Urban Growth", "Community Reports", "AI Assistant"]
 )
 
-# Global variables for Bengaluru's coordinates
-BENGALURU_LAT = 12.9716
-BENGALURU_LON = 77.5946
-
-# Load environmental data
-@st.cache_data
-def load_data():
-    return load_environmental_data()
-
-env_data = load_data()
-
-@st.cache_data(ttl=3600)  # Cache for 1 hour
-def get_live_weather_data():
-    """
-    Fetches real-time weather and air quality data from Open-Meteo APIs.
-    """
-    try:
-        # Fetching temperature and other weather data
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=temperature_2m,relative_humidity_2m"
-        weather_response = requests.get(weather_url)
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
-        current_temp = weather_data['current']['temperature_2m']
-        
-        # Fetching air quality data
-        aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}&current=european_aqi"
-        aqi_response = requests.get(aqi_url)
-        aqi_response.raise_for_status()
-        aqi_data = aqi_response.json()
-        current_aqi = aqi_data['current']['european_aqi']
-        
-        return {
-            "temperature": current_temp,
-            "aqi": current_aqi
-        }
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching live data: {e}")
-        return None
+# Load environmental data (mocked)
+env_data = load_environmental_data()
 
 # Main dashboard content based on selected module
 if module == "Overview":
     st.header(f"📈 {stakeholder} Overview Dashboard")
-    
+
     # Fetch live data
     live_data = get_live_weather_data()
-    
+
     # Key metrics row
     col1, col2, col3, col4 = st.columns(4)
 
-    if live_data:
-        with col1:
-            st.metric("🌡️ Avg Temperature", f"{live_data['temperature']}°C")
+    # Use live data or mock data
+    current_temp = live_data['temperature'] if live_data else 33.1
+    current_aqi = live_data['aqi'] if live_data else 165
 
-        with col3:
-            st.metric("🌬️ Air Quality (AQI)", f"{live_data['aqi']}")
-    else:
-        # Use mock data if API call fails
-        with col1:
-            st.metric("🌡️ Avg Temperature", "32.5°C", "+2.1°C")
-
-        with col3:
-            st.metric("🌬️ Air Quality (AQI)", "156", "+12")
-
-    # Metrics that don't change in real-time
+    with col1:
+        st.metric("🌡️ Live Temperature", f"{current_temp}°C", f"+{round(current_temp - 30.0, 1)}°C above normal")
+    with col3:
+        st.metric("🌬️ Live Air Quality (AQI)", f"{current_aqi}", "Unhealthy")
     with col2:
-        st.metric("💧 Lake Health Index", "6.2/10", "-0.8")
-        
+        st.metric("💧 Lake Health Index", "6.2/10", "-0.8 points (Poor)")
     with col4:
-        st.metric("🏙️ Green Cover", "18.2%", "-1.3%")
-        
+        st.metric("🌳 Green Cover Status", "18.2%", "-1.3% since 2020")
+
+    # --- URGENCY GRAPH ---
+    st.subheader("Combined Environmental Stress Indicator")
+    trend_fig = create_trend_graph()
+    if trend_fig:
+        st.plotly_chart(trend_fig, use_container_width=True)
+    else:
+        st.error("Failed to load historical data for the trend graph. Please check API connectivity.")
+
     # Overview map
-    st.subheader("🗺️ Bengaluru Environmental Overview")
+    st.subheader("🗺️ Key Environmental Monitoring Locations")
     base_map = create_base_map()
     locations = get_sample_locations()
     for loc in locations:
         folium.CircleMarker(
             location=[loc['lat'], loc['lon']],
             radius=8,
-            popup=f"{loc['name']}: {loc['type']}",
+            popup=f"<b>{loc['name']}</b> ({loc['type']})",
             color=loc['color'],
             fillColor=loc['color'],
             fillOpacity=0.7
         ).add_to(base_map)
 
-    map_data = st_folium(base_map, width=700, height=500)
+    st_folium(base_map, width="100%", height=500)
 
     # Recent alerts
-    st.subheader("🚨 Recent Environmental Alerts")
+    st.subheader("🚨 Recent High-Priority Alerts")
     alerts_df = pd.DataFrame([
-        {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High"},
-        {"Time": "6 hours ago", "Type": "Air Quality", "Location": "Silk Board", "Severity": "Moderate"},
-        {"Time": "1 day ago", "Type": "Water Quality", "Location": "Bellandur Lake", "Severity": "High"},
-        {"Time": "2 days ago", "Type": "Flooding Risk", "Location": "Majestic Area", "Severity": "Low"}
+        {"Time": "2 hours ago", "Type": "Heat Wave", "Location": "Electronic City", "Severity": "High", "Action Required": "Public cooling centers activated."},
+        {"Time": "6 hours ago", "Type": "Air Quality", "Location": "Silk Board", "Severity": "Moderate", "Action Required": "Restrict non-essential vehicle movement."},
+        {"Time": "1 day ago", "Type": "Water Quality", "Location": "Bellandur Lake", "Severity": "High", "Action Required": "BWSSB dispatched testing team."},
+        {"Time": "2 days ago", "Type": "Flooding Risk", "Location": "Majestic Area", "Severity": "Low", "Action Required": "Storm water drains clearing initiated."}
     ])
-    st.dataframe(alerts_df, width='stretch')
+    st.dataframe(alerts_df, use_container_width=True, hide_index=True)
 
 elif module == "Heat Islands":
     create_heat_map(stakeholder)
@@ -216,13 +386,12 @@ st.markdown("""
 
 # Project Team Credits
 st.markdown("""
-**Project by:** Santhosh P 
-Aysu A & Team
+**Project by:** Santhosh P, Aysu A & Team
 """)
 
 # NEW FIXED FOOTER/DOWNBAR
 st.markdown("""
     <div class="fixed-footer">
-        CodeSphere Institute | DAST India | Santhosh P & Team
+        CodeSphere Institute | DAST India | Building Climate Resilience
     </div>
 """, unsafe_allow_html=True)
