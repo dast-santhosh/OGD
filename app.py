@@ -248,7 +248,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # ... (the rest of your code)
 
-elif module == "Heat Islands":
+if module == "Heat Islands":
     create_heat_map(stakeholder)
 
 elif module == "Water Monitoring":
