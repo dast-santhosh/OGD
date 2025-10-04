@@ -14,10 +14,8 @@ from components.water_monitoring import create_water_dashboard
 from components.air_quality import create_air_quality_dashboard
 from components.urban_growth import create_urban_growth_analyzer
 from components.community_reports import create_community_reports
-from components.chatbot import create_chatbot
 from services.nasa_service import NASAService
 from services.weather_service import WeatherService
-from services.gemini_service import GeminiService
 from utils.data_utils import get_bengaluru_coordinates, get_sample_locations, load_environmental_data
 from utils.map_utils import create_base_map
 
@@ -95,17 +93,16 @@ def initialize_services():
     """Initializes and caches API services."""
     nasa_service = NASAService()
     weather_service = WeatherService()
-    gemini_service = GeminiService()
-    return nasa_service, weather_service, gemini_service
+    return nasa_service, weather_service
 
 # Main app function
 def main():
     """Main function to run the Streamlit application."""
     st.title("🌍 Aeroterra – Climate-Resilient Bengaluru Dashboard")
-    st.markdown("*Interactive geospatial decision-support platform powered by NASA Earth observation data and AI*")
+    st.markdown("*Interactive geospatial decision-support platform powered by NASA Earth observation data*")
 
     # Initialize services
-    nasa_service, weather_service, gemini_service = initialize_services()
+    nasa_service, weather_service = initialize_services()
 
     # Add logos to the sidebar
     st.sidebar.image("nasa.png", use_container_width=True)
@@ -121,7 +118,7 @@ def main():
     st.sidebar.title("📊 Dashboard Modules")
     module = st.sidebar.selectbox(
         "Select Module:",
-        ["Overview", "Heat Islands", "Water Monitoring", "Air Quality", "Urban Growth", "Community Reports", "AI Assistant"]
+        ["Overview", "Heat Islands", "Water Monitoring", "Air Quality", "Urban Growth", "Community Reports"]
     )
 
     # Global variables for Bengaluru's coordinates
@@ -143,8 +140,6 @@ def main():
         create_urban_growth_analyzer(stakeholder)
     elif module == "Community Reports":
         create_community_reports(stakeholder)
-    elif module == "AI Assistant":
-        create_chatbot(stakeholder, env_data)
 
     # Main Content Footer (just above the fixed footer)
     st.markdown("---")
@@ -160,10 +155,9 @@ def main():
     # NEW FIXED FOOTER/DOWNBAR
     st.markdown("""
         <div class="fixed-footer">
-            🌍 Aeroterra Dashboard | Powered by NASA Earth Observations & Gemini AI
+            🌍 Aeroterra Dashboard | Powered by NASA Earth Observations
         </div>
     """, unsafe_allow_html=True)
-
 
 def render_overview(stakeholder, lat, lon, weather_service, env_data):
     """Renders the main Overview dashboard section."""
