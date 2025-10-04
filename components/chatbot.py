@@ -4,7 +4,6 @@ import json
 import os
 from typing import Dict, List, Optional
 # Corrected Imports: Use relative paths to access services and utils modules
-from services.gemini_service import GeminiService
 from services.weather_service import WeatherService
 from services.nasa_service import WeatherService
 from services.nasa_service import NASAService
