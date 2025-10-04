@@ -13,7 +13,7 @@ from components.water_monitoring import create_water_dashboard
 from components.air_quality import create_air_quality_dashboard
 from components.urban_growth import create_urban_growth_analyzer
 from components.community_reports import create_community_reports
-from components.chatbot import render_chatbot
+from components.chatbot import create_chatbot
 from data.bengaluru_data import get_bengaluru_coordinates, get_sample_locations
 from utils.map_utils import create_base_map
 from utils.data_processing import load_environmental_data
