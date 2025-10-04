@@ -83,16 +83,6 @@ div.block-container {
     padding: 15px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
-
-/* 7. Force Main Content Background to White (New Rule) */
-[data-testid="stAppViewContainer"] {
-    background-color: white !important;
-}
-/* Ensure the main area inside the container is also white */
-.main {
-    background-color: white !important;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
