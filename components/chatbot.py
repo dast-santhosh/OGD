@@ -5,7 +5,6 @@ import os
 from typing import Dict, List, Optional
 # Corrected Imports: Use relative paths to access services and utils modules
 from services.weather_service import WeatherService
-from services.nasa_service import WeatherService
 from services.nasa_service import NASAService
 from utils.data_utils import get_bengaluru_coordinates
 # --- API Configuration & Environment Variables (Gemini API) ---
