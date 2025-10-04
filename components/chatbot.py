@@ -1,52 +1,45 @@
 import streamlit as st
-import requests
-import json
+import google.generativeai as genai
 import os
 from typing import Dict, List, Optional
 # Corrected Imports: Use relative paths to access services and utils modules
-from services.weather_service import WeatherService
-from services.nasa_service import NASAService
-from utils.data_utils import get_bengaluru_coordinates
+# from services.weather_service import WeatherService
+# from services.nasa_service import NASAService
+# from utils.data_utils import get_bengaluru_coordinates
+
 # --- API Configuration & Environment Variables (Gemini API) ---
-# Use a current and stable model name
+# It's best practice to set this as an environment variable
+# st.secrets is a good alternative in Streamlit
+# GEMINI_API_KEY = st.secrets["gemini_api_key"]
 GEMINI_API_KEY = "AIzaSyBdmm58juT-4EL5Vc78sXhtqNZ8dsxv8c"
-GEMINI_MODEL = "gemini-1.5-flash-latest"  # Changed to a current, stable model
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
 
-# Helper function to call the Gemini API using requests
+# Configure the genai library with the API key
+genai.configure(api_key=GEMINI_API_KEY)
+
+# Use a current and stable model name
+GEMINI_MODEL = "gemini-1.5-flash-latest"
+
+# Helper function to call the Gemini API using the genai library
 def generate_ai_content(system_prompt: str, user_input: str) -> str:
-    """Helper function to call the Gemini API using requests."""
-    url = GEMINI_URL
-    model_name = GEMINI_MODEL
-    headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [{"parts": [{"text": user_input}]}],
-        "systemInstruction": {"parts": [{"text": system_prompt}]}
-    }
-
+    """Helper function to call the Gemini API using the genai library."""
     try:
-        max_retries = 3
-        initial_delay = 1
-        for attempt in range(max_retries):
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            if response.status_code == 200:
-                break
-            if response.status_code in [429, 500, 503] and attempt < max_retries - 1:
-                import time
-                time.sleep(initial_delay * (2 ** attempt))
-            else:
-                response.raise_for_status()
+        # Instantiate the GenerativeModel
+        model = genai.GenerativeModel(GEMINI_MODEL)
         
-        result = response.json()
-        candidate = result.get('candidates', [{}])[0]
-        if candidate and candidate.get('content') and candidate['content'].get('parts'):
-            return candidate['content']['parts'][0].get('text', "AI response text not found.")
+        # Combine the system prompt and user input into a single string
+        combined_input = f"{system_prompt}\n\n{user_input}"
+        
+        # Generate content
+        response = model.generate_content(combined_input)
+        
+        # Return the response text
+        if response and response.text:
+            return response.text
         else:
-            error_message = result.get('error', {}).get('message', 'Unknown API Error')
-            return f"The Gemini AI returned an error: {error_message}"
-
-    except requests.exceptions.RequestException as e:
-        return f"Sorry, I'm having trouble connecting to the Gemini AI service ({model_name}). Error details: {str(e)}"
+            return "AI response text not found."
+    
+    except Exception as e:
+        return f"Sorry, I'm having trouble connecting to the Gemini AI service ({GEMINI_MODEL}). Error details: {str(e)}"
 
 # Main function to create and render the chatbot interface
 def create_chatbot(stakeholder: str, env_data: Dict):
