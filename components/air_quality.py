@@ -28,6 +28,9 @@ def create_base_map(lat: float = BENGALURU_LAT, lon: float = BENGALURU_LON, zoom
 
 def get_aqi_category(aqi: float) -> str:
     """Returns the descriptive category for the European AQI."""
+    # Check if aqi is NaN before comparison, which can happen on error
+    if pd.isna(aqi): return "Unknown"
+    
     if aqi <= 20: return "Good"
     if aqi <= 40: return "Fair"
     if aqi <= 60: return "Moderate"
@@ -37,6 +40,7 @@ def get_aqi_category(aqi: float) -> str:
 
 def get_aqi_color(aqi: float) -> str:
     """Returns a color for the AQI level."""
+    if pd.isna(aqi): return "gray"
     if aqi <= 20: return "green"
     if aqi <= 40: return "lightgreen"
     if aqi <= 60: return "orange"
@@ -103,16 +107,22 @@ def create_air_quality_dashboard(stakeholder):
 
     aqi_data = fetch_air_quality_data(BENGALURU_LAT, BENGALURU_LON)
     
+    # Initialize variables for safe access
+    current_aqi = 55.0  # Default to moderate mock value
+    
     # Initialize charts and dataframes with mock data in case of API failure
-    if not aqi_data['success']:
+    if not aqi_data['success'] or aqi_data['current'] is None:
         st.warning("Data fetch failed. Displaying mock data for demonstration.")
-        current_aqi = 55
-        current_category = "Moderate"
-        pollutant_df = pd.DataFrame({
-            "Pollutant": ["$\text{PM}_{2.5}$", "$\text{PM}_{10}$", "$\text{NO}_{2}$", "$\text{SO}_{2}$"],
-            "Value ($\mu g / m^3$)": [28.5, 45.1, 15.0, 5.2],
-            "EAC Limit": [25, 50, 40, 20]
-        })
+        current_aqi = 55.0
+        
+        # Mock data for current pollutant levels
+        pollutant_data = {
+            "Pollutant": ["$\text{PM}_{2.5}$", "$\text{PM}_{10}$", "$\text{NO}_{2}$", "$\text{SO}_{2}$", "$\text{O}_{3}$"],
+            "Value ($\mu g / m^3$)": [28.5, 45.1, 15.0, 5.2, 35.0],
+            "EAC Limit": [25, 50, 40, 20, 100]
+        }
+        pollutant_df = pd.DataFrame(pollutant_data)
+        
         daily_trend_df = pd.DataFrame({
             'Date': pd.date_range(end=datetime.now(), periods=7, freq='D').date,
             'AQI': [45, 50, 60, 58, 52, 55, 62]
@@ -216,6 +226,9 @@ def create_air_quality_dashboard(stakeholder):
         fig_waterfall.update_layout(showlegend=False, yaxis_title="AQI Change")
         fig_waterfall.update_traces(textposition='outside')
         
+    # Determine the category based on the current_aqi (either real or mock)
+    current_category = get_aqi_category(current_aqi)
+
     # Stakeholder Messaging
     if stakeholder == "Citizens":
         st.info(f"👥 **Citizen View:** Monitor local air quality and understand health risks. Current AQI is **{current_category}**.")
@@ -228,7 +241,9 @@ def create_air_quality_dashboard(stakeholder):
 
     with col1:
         st.subheader("Current Status (EAC Index)")
-        st.metric("European AQI", f"{current_aqi:.0f}", help="European Air Quality Index (EAC) based on Open-Meteo data.")
+        # Ensure AQI is displayed safely as a string, handling the float format
+        display_aqi = f"{current_aqi:.0f}" if not pd.isna(current_aqi) else "N/A"
+        st.metric("European AQI", display_aqi, help="European Air Quality Index (EAC) based on Open-Meteo data.")
         st.markdown(f"**Health Risk:** <span style='color:{get_aqi_color(current_aqi)};'>**{current_category}**</span>", unsafe_allow_html=True)
         st.markdown("---")
         st.subheader("Key Pollutant Levels")
