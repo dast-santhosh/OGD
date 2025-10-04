@@ -78,8 +78,7 @@ for urban planners, policymakers, and citizens.
 
 # Add logos to the sidebar
 # FIX: Replaced deprecated `use_column_width` with `use_container_width`
-st.sidebar.image("nasa.png", use_container_width=True)
-st.sidebar.image("logo.png", use_container_width=True)
+st.sidebar.image("logo1.png", use_container_width=True)
 
 # Sidebar for stakeholder selection and navigation
 st.sidebar.title("🎯 Stakeholder Dashboard")
