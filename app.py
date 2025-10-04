@@ -150,7 +150,7 @@ def render_overview():
 
     # Overview map
     st.subheader("🗺️ Environmental Overview Map")
-    base_map = create_base_map(BENGALURU_LAT, BENGALURU_LON)
+    base_map = create_base_map() 
     locations = get_sample_locations()
     for loc in locations:
         folium.CircleMarker(
