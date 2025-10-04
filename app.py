@@ -200,71 +200,29 @@ def get_live_weather_data():
 
 @st.cache_data(ttl=3600*24) # Cache for 24 hours
 def create_trend_graph():
-    """Fetches historical data to create a dual-axis trend graph."""
+    """
+    Generates a dual-axis trend graph using simulated historical data only.
+    API integration for this function has been disabled.
+    """
     end_date = datetime.now()
     start_date = end_date - timedelta(days=7)
     
-    max_retries = 3
-    base_delay = 1
+    # --- Using only mock data as requested ---
+    st.warning("Displaying **simulated** trend data. API connection for historical trends has been disabled.")
     
-    df = None # Initialize df
-
-    for attempt in range(max_retries):
-        try:
-            # Fetch historical weather data (daily mean for better readability)
-            weather_url = (
-                f"https://api.open-meteo.com/v1/forecast?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}"
-                f"&daily=temperature_2m_max&start_date={start_date.strftime('%Y-%m-%d')}"
-                f"&end_date={end_date.strftime('%Y-%m-%d')}"
-            )
-            weather_response = requests.get(weather_url, timeout=15)
-            weather_response.raise_for_status()
-            weather_data = weather_response.json()
-            
-            # Fetch historical air quality data (daily mean AQI)
-            aqi_url = (
-                f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={BENGALURU_LAT}&longitude={BENGALURU_LON}"
-                f"&daily=european_aqi_max&start_date={start_date.strftime('%Y-%m-%d')}"
-                f"&end_date={end_date.strftime('%Y-%m-%d')}"
-            )
-            aqi_response = requests.get(aqi_url, timeout=15)
-            aqi_response.raise_for_status()
-            aqi_data = aqi_response.json()
-
-            # --- FIX: Key Validation to prevent KeyError if API returns non-standard response ---
-            if 'daily' not in weather_data or 'daily' not in aqi_data:
-                # If 'daily' key is missing, treat it as a fetch failure and raise an exception 
-                # to fall into the retry/mock data logic below.
-                raise ValueError("API returned data but missing expected 'daily' key.")
-
-            # Create DataFrame from live data
-            df = pd.DataFrame({
-                'date': pd.to_datetime(weather_data['daily']['time']),
-                'max_temperature': weather_data['daily']['temperature_2m_max'],
-                'max_aqi': aqi_data['daily']['european_aqi_max']
-            })
-            break # Success, exit loop
-        
-        except (requests.exceptions.RequestException, ValueError) as e: # Catch Request errors and the new ValueError
-            if attempt < max_retries - 1:
-                delay = base_delay * (2 ** attempt)
-                time.sleep(delay)
-            else:
-                # API failure, use mock data fallback
-                st.warning(f"Failed to fetch historical data after {max_retries} attempts. Displaying simulated trend data.")
-                dates = [start_date + timedelta(days=i) for i in range(7)]
-                df = pd.DataFrame({
-                    'date': dates,
-                    'max_temperature': [32.5, 33.0, 34.1, 35.5, 34.9, 33.5, 32.8], # Mock temps
-                    'max_aqi': [90, 105, 120, 115, 100, 85, 95] # Mock AQI
-                })
-                break
+    dates = [start_date + timedelta(days=i) for i in range(7)]
+    df = pd.DataFrame({
+        'date': dates,
+        'max_temperature': [32.5, 33.0, 34.1, 35.5, 34.9, 33.5, 32.8], # Mock temps
+        'max_aqi': [90, 105, 120, 115, 100, 85, 95] # Mock AQI
+    })
+    # ----------------------------------------
     
     if df is None or df.empty:
         return None
 
-    # Create a dual-axis plot
-    fig = make_subplots(specs=[{"secondary_y": True}])
+    # Fix: Explicitly define rows and cols for make_subplots to prevent Plotly ValueError
+    fig = make_subplots(rows=1, cols=1, specs=[[{"secondary_y": True}]])
 
     # Add Temperature trace (Red for urgency)
     fig.add_trace(
@@ -349,7 +307,7 @@ env_data = load_environmental_data()
 if module == "Overview":
     st.header(f"📈 {stakeholder} Overview Dashboard")
 
-    # Fetch live data
+    # Fetch live data (still uses API, so we keep the function)
     live_data = get_live_weather_data()
 
     # Key metrics row
@@ -370,10 +328,12 @@ if module == "Overview":
 
     # --- URGENCY GRAPH ---
     st.subheader("Combined Environmental Stress Indicator")
-    trend_fig = create_trend_graph()
+    # This function now uses only mock data
+    trend_fig = create_trend_graph() 
     if trend_fig:
         st.plotly_chart(trend_fig, use_container_width=True)
     else:
+        # This error case should now be impossible since it uses mock data
         st.error("Failed to load or generate the trend graph.")
 
     # Overview map
@@ -423,7 +383,7 @@ elif module == "AI Assistant":
 # Main Content Footer (just above the fixed footer)
 st.markdown("---")
 st.markdown("""
-**Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM, Open-Meteo API | **Last Updated:** {current_time}
+**Data Sources:** NASA MODIS, Landsat, VIIRS, TROPOMI, GPM, Open-Meteo API (for Live Data) | **Last Updated:** {current_time}
 """.format(current_time=datetime.now().strftime("%Y-%m-%d %H:%M UTC")))
 
 # Project Team Credits
